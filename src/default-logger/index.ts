@@ -3,7 +3,9 @@ import { formatWithOptions } from 'util'
 import supportsColor = require('supports-color')
 import { LoggerService } from '../interfaces'
 
-const format = formatWithOptions.bind(null, { colors: supportsColor.stdout })
+const format = (f: string, ...argv: any[]) => {
+  return formatWithOptions({ colors: supportsColor.stdout }, f, ...argv)
+}
 
 type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG'
 
