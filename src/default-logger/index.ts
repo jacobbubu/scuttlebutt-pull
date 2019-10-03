@@ -5,8 +5,6 @@ import { LoggerService } from '../interfaces'
 
 const format = formatWithOptions.bind(null, { colors: supportsColor.stdout })
 
-const yellow = clc.xterm(3)
-
 type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG'
 
 const toColoredContext = (context: string) => {
