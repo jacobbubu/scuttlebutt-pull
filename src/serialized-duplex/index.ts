@@ -21,7 +21,7 @@ export class SerializedDuplex extends EventEmitter implements DuplexInterface {
       } else if ('string' === typeof this.wrapper) {
         throw new Error(`unsupported wrapper name(${this.wrapper})`)
       } else {
-        this._source = pull(this.inner.source, (this.wrapper as Serializer).serialize())
+        this._source = pull(this.inner.source, this.wrapper.serialize())
       }
     }
     return this._source
@@ -36,7 +36,7 @@ export class SerializedDuplex extends EventEmitter implements DuplexInterface {
       } else if ('string' === typeof this.wrapper) {
         throw new Error(`unsupported wrapper name(${this.wrapper})`)
       } else {
-        this._sink = pull((this.wrapper as Serializer).parse(), this.inner.sink)
+        this._sink = pull(this.wrapper.parse(), this.inner.sink)
       }
     }
     return this._sink

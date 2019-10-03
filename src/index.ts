@@ -158,7 +158,7 @@ class Scuttlebutt extends EventEmitter {
   }
 
   setId(id: string | null) {
-    if (id == null) throw new Error('null is not invalid id')
+    if (id === null) throw new Error('null is not invalid id')
     this.id = id
     return this
   }

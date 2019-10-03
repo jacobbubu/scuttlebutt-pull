@@ -23,7 +23,6 @@ class AsyncModel extends Scuttlebutt {
       opts = opts || {}
       super({ ...opts })
     }
-    opts = opts as ScuttlebuttOptions
     this.store = opts && opts.store ? opts.store : new DefaultStore()
   }
 

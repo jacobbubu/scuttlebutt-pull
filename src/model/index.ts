@@ -13,7 +13,7 @@ import {
 } from '../interfaces'
 
 class Model extends Scuttlebutt {
-  public store: { [key: string]: Update } = {}
+  public store: Record<string, Update> = {}
 
   constructor(opts?: ScuttlebuttOptions | string) {
     super(opts)
@@ -58,12 +58,12 @@ class Model extends Scuttlebutt {
     }
 
     // ignore if we already have a more recent value
-    if (
-      'undefined' !== typeof this.store[key] &&
-      this.store[key][UpdateItems.Timestamp] > update[UpdateItems.Timestamp]
-    ) {
-      this.emit('_remove', update)
-      return false
+    // tslint:disable-next-line:strict-type-predicates
+    if (typeof this.store[key] !== 'undefined') {
+      if (this.store[key][UpdateItems.Timestamp] > update[UpdateItems.Timestamp]) {
+        this.emit('_remove', update)
+        return false
+      }
     }
 
     if (this.store[key]) {

@@ -8,6 +8,7 @@ import { DefaultNoopLogger, Logger } from './default-logger'
 import isPromise = require('is-promise')
 
 function validate(update: Update) {
+  /* tslint:disable */
   if (
     !(
       Array.isArray(update) &&
@@ -18,6 +19,7 @@ function validate(update: Update) {
   ) {
     return false
   }
+  /* tslint:enable */
   return true
 }
 
@@ -51,20 +53,16 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
 
   sb.streams++
 
-  async function onData(update: Update) {
-    logger.debug!('onData:', update)
+  async function onData(update: Update | object | String) {
+    logger.debug('onData:', update)
     // 如果收到的数据是 Array，我们认为是 Update[]
     if (Array.isArray(update)) {
       if (!duplex.writable) return
       if (validate(update)) {
         return sb._update(update)
-      }
-    }
-    // it's a scuttlebutt digest(vector clocks) when clock is an object.
-    else if ('object' === typeof update && update) {
-      start(update)
+      } // tslint:disable-next-line:strict-type-predicates
     } else if ('string' === typeof update) {
-      const cmd = update as string
+      const cmd = update
       if (cmd === 'SYNC') {
         syncRecv = true
         outer.emit('syncReceived')
@@ -72,6 +70,9 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
           outer.emit('synced')
         }
       }
+    } else {
+      // it's a scuttlebutt digest(vector clocks) when clock is an object.
+      start(update)
     }
   }
 
@@ -106,14 +107,14 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
       return duplex.abort()
     }
 
-    peerSources = incoming.clock as Sources
+    peerSources = incoming.clock
     peerId = incoming.id
     peerAccept = incoming.accept
 
     // call this.history to calculate the delta between peers
     const history = sb.history(peerSources, peerAccept)
     if (isPromise(history)) {
-      history.then(promiseResoved)
+      return history.then(promiseResoved)
     } else {
       promiseResoved(history)
     }
