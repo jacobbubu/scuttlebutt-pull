@@ -73,8 +73,16 @@ class Model extends Scuttlebutt {
     this.store[key] = update
 
     this.emit.apply(this, ['update', update])
-    this.emit('change', key, update[UpdateItems.Data][ModelValueItems.Value])
-    this.emit('change:' + key, update[UpdateItems.Data][ModelValueItems.Value])
+    this.emit('changed', key, update[UpdateItems.Data][ModelValueItems.Value])
+    this.emit('changed:' + key, update[UpdateItems.Data][ModelValueItems.Value])
+    if (update[UpdateItems.SourceId] !== this.id) {
+      this.emit(
+        'changedByPeer',
+        key,
+        update[UpdateItems.Data][ModelValueItems.Value],
+        update[UpdateItems.From]
+      )
+    }
 
     return true
   }
