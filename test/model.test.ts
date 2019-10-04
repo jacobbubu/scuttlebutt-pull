@@ -6,7 +6,26 @@ describe('model', () => {
     valueA: 'changed by A',
     valueB: 'changed by B'
   }
-  it.skip('change before sync', done => {
+
+  it('local change', done => {
+    const a = new Model('A')
+
+    let c = 2
+    a.on('changed', (key, value) => {
+      expect(key).toBe(expected.key)
+      expect(value).toBe(expected.valueA)
+      if (!--c) done()
+    })
+
+    a.on(`changed:${expected.key}`, value => {
+      expect(value).toBe(expected.valueA)
+      if (!--c) done()
+    })
+
+    a.set(expected.key, expected.valueA)
+  })
+
+  it('change before sync', done => {
     const a = new Model('A')
     const b = new Model('B')
 
@@ -14,25 +33,21 @@ describe('model', () => {
     const s2 = b.createStream({ name: 'b->a' })
 
     a.set(expected.key, expected.valueA)
-
-    link(s1, s2)
 
     s2.on('synced', () => {
       expect(b.get(expected.key)).toBe(expected.valueA)
       done()
     })
+
+    link(s1, s2)
   })
 
-  it.skip('change after sync', done => {
+  it('change after sync', done => {
     const a = new Model('A')
     const b = new Model('B')
 
     const s1 = a.createStream({ name: 'a->b' })
     const s2 = b.createStream({ name: 'b->a' })
-
-    link(s1, s2)
-
-    a.set(expected.key, expected.valueA)
 
     b.on('changedByPeer', (key, value) => {
       expect(key).toBe(expected.key)
@@ -40,6 +55,9 @@ describe('model', () => {
       expect(b.get(expected.key)).toBe(expected.valueA)
       done()
     })
+
+    link(s1, s2)
+    a.set(expected.key, expected.valueA)
   })
 
   it('change in two-ways', done => {
@@ -48,8 +66,6 @@ describe('model', () => {
 
     const s1 = a.createStream({ name: 'a->b' })
     const s2 = b.createStream({ name: 'b->a' })
-
-    link(s1, s2)
 
     a.set(expected.key, expected.valueA)
 
@@ -69,5 +85,7 @@ describe('model', () => {
 
       b.set(expected.key, expected.valueB)
     })
+
+    link(s1, s2)
   })
 })
