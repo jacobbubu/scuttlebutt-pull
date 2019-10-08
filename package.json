@@ -11,7 +11,7 @@
   "author": "jacobbubu <rong.shen@gmail.com>",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "https://github.com/jacobbubu/scuttlebutt-pull.git"
   },
   "license": "MIT",
   "engines": {
