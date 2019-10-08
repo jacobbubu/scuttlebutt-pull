@@ -8,13 +8,13 @@ export class SerializedDuplex extends EventEmitter implements DuplexInterface {
   private _source: any
   private _sink: any
 
-  constructor(readonly inner: Duplex, readonly wrapper?: string | Serializer) {
+  constructor(readonly inner: Duplex, readonly wrapper: string | Serializer = 'json') {
     super()
   }
 
   get source() {
     if (!this._source) {
-      if (!this.wrapper || this.wrapper === 'raw') {
+      if (this.wrapper === 'raw') {
         this._source = this.inner.source
       } else if (this.wrapper === 'json') {
         this._source = pull(this.inner.source, jsonSerializer.serialize())
@@ -29,7 +29,7 @@ export class SerializedDuplex extends EventEmitter implements DuplexInterface {
 
   get sink() {
     if (!this._sink) {
-      if (!this.wrapper || this.wrapper === 'raw') {
+      if (this.wrapper === 'raw') {
         this._sink = this.inner.sink
       } else if (this.wrapper === 'json') {
         this._sink = pull(jsonSerializer.parse(), this.inner.sink)
