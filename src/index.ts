@@ -1,3 +1,5 @@
+import 'core-js'
+
 import { EventEmitter } from 'events'
 import timestamp = require('monotonic-timestamp')
 import { link } from './duplex'

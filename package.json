@@ -124,6 +124,7 @@
   "dependencies": {
     "@jacobbubu/pull-split": "^0.2.2",
     "cli-color": "^1.4.0",
+    "core-js": "^3.2.1",
     "duplex": "^1.0.0",
     "is-promise": "^2.1.0",
     "iterate": "^0.1.1",
