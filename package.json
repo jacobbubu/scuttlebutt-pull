@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "description": "",
   "keywords": [],
-  "main": "dist/scuttlebutt-pull.js",
-  "typings": "dist/types/scuttlebutt-pull.d.ts",
+  "main": "dist/index.js",
+  "typings": "dist/types/index.d.ts",
   "files": [
     "dist"
   ],
