@@ -1,13 +1,13 @@
 import { AsyncModel, link } from '../src'
-import { delay, printAsyncKeyValue } from './utils'
+import { printAsyncKeyValue } from './utils'
 
 const main = async function() {
-  const a = new AsyncModel({ id: 'A', logger: false })
-  const b = new AsyncModel({ id: 'B', logger: false, accept: { whitelist: ['foo'] } })
+  const a = new AsyncModel({ id: 'A' })
+  const b = new AsyncModel({ id: 'B', accept: { whitelist: ['foo'] } })
 
   // in a <-> b relationship, a is read-only and b is write-only
-  const s1 = a.createStream({ name: 'a->b', logger: false })
-  const s2 = b.createStream({ name: 'b->a', logger: false })
+  const s1 = a.createStream({ name: 'a->b' })
+  const s2 = b.createStream({ name: 'b->a' })
 
   console.log(`--- set 'foo'@${a.id}`)
   await a.set('foo', 'changed by A')

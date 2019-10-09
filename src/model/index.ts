@@ -20,7 +20,7 @@ class Model extends Scuttlebutt {
   }
 
   set(k: string, v: any) {
-    this.logger.info(`set('${k}', '${v}]')`)
+    this.logger.log('set: %o', { k, v })
 
     if (k === '__proto__') {
       return u.protoIsIllegal(this)
@@ -112,7 +112,6 @@ class Model extends Scuttlebutt {
         h.push(update)
       }
     })
-    this.logger.debug('  length:', h.length, h)
     return u.sort(h)
   }
 

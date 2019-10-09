@@ -2,7 +2,9 @@ import { EventEmitter } from 'events'
 import timestamp = require('monotonic-timestamp')
 import { link } from './duplex'
 import createStream from './create-stream'
-import { Logger, DefaultNoopLogger } from './default-logger'
+import { Debug } from '@jacobbubu/debug'
+
+const defaultLogger = Debug.create('sb')
 
 import {
   ScuttlebuttOptions,
@@ -11,8 +13,7 @@ import {
   Verify,
   Sign,
   StreamOptions,
-  UpdateItems,
-  LoggerService
+  UpdateItems
 } from './interfaces'
 import { createId, filter, sort, isPromise } from './utils'
 
@@ -21,13 +22,11 @@ class Scuttlebutt extends EventEmitter {
   private _verify?: Verify = undefined
   private _clones: number = 0
 
-  public logger: LoggerService
-  public loggerEnabled = false
-
   public streams = 0
   public sources: Sources = {}
   public id: string = ''
   public accept: any
+  public readonly logger: Debug
 
   constructor(opts?: ScuttlebuttOptions | string) {
     super()
@@ -47,13 +46,7 @@ class Scuttlebutt extends EventEmitter {
       this.setId(id || createId())
     }
 
-    if (typeof opts.logger === 'boolean') {
-      this.logger = opts.logger ? new Logger(this.id) : DefaultNoopLogger
-    } else {
-      this.logger = typeof opts.logger === 'undefined' ? DefaultNoopLogger : opts.logger!
-    }
-    this.loggerEnabled = this.logger !== DefaultNoopLogger
-
+    this.logger = defaultLogger.ns(this.id)
     this.accept = opts.accept
   }
 
@@ -75,20 +68,20 @@ class Scuttlebutt extends EventEmitter {
   // private method
   // localUpdate 和 history 会触发 _update
   _update(update: Update) {
-    this.logger.debug('_update:', update)
+    this.logger.info('_update: %o', update)
 
     const ts = update[UpdateItems.Timestamp]
     const sourceId = update[UpdateItems.SourceId]
     const latest = this.sources[sourceId] || 0
 
-    if (latest && latest >= ts) {
-      this.logger.debug('  update is older, ignore it', { latest, ts, diff: ts - latest })
+    if (latest >= ts) {
+      this.logger.debug('update is older, ignore it', { latest, ts, diff: ts - latest })
       this.emit('old_data', update)
       return false
     }
 
     this.sources[sourceId] = ts
-    this.logger.debug('  new sources', this.sources)
+    this.logger.debug('update our sources to', this.sources)
 
     const self = this
 
@@ -108,13 +101,13 @@ class Scuttlebutt extends EventEmitter {
       if (isPromise(r)) {
         return r.then(updated => {
           if (updated) self.emit('_update', update)
-          self.logger.debug('  update applied and ⚡_update fired')
+          self.logger.debug('applied "update" and fired ⚡_update')
           return updated
         })
       } else {
         if (r) {
           self.emit('_update', update)
-          self.logger.debug('  update applied and ⚡_update fired')
+          self.logger.debug('applied "update" and fired ⚡_update')
         }
         return r
       }
@@ -128,8 +121,6 @@ class Scuttlebutt extends EventEmitter {
       }
       return didVerification(true)
     }
-
-    return true
   }
 
   localUpdate(trx: any) {

@@ -27,7 +27,7 @@ class AsyncModel extends Scuttlebutt {
   }
 
   async set(k: string, v: any) {
-    this.logger.info(`set('${k}', '${v}]')`)
+    this.logger.log('set: %o', { k, v })
 
     if (k === '__proto__') {
       return u.protoIsIllegal(this)
@@ -104,12 +104,10 @@ class AsyncModel extends Scuttlebutt {
   }
 
   async history(peerSources: Sources, peerAccept?: ModelAccept) {
-    this.logger.info('history:', peerSources)
     const res = await this.store.history(
       peerSources,
       peerAccept ? this.isAccepted.bind(this, peerAccept) : undefined
     )
-    this.logger.debug('  length:', res.length, res)
     return res
   }
 

@@ -1,6 +1,5 @@
 import * as pull from 'pull-stream'
 import { AsyncModelStoreBase } from './async-model-store.interface'
-import { LoggerService } from './logger.interface'
 export type SourceId = string
 export type Timestamp = number
 export type From = string
@@ -12,7 +11,6 @@ export interface ScuttlebuttOptions {
   sign?: boolean
   verify?: boolean
   store?: AsyncModelStoreBase
-  logger?: LoggerService | boolean
   accept?: any
 }
 
@@ -25,7 +23,6 @@ export interface StreamOptions {
   sendClock?: boolean
   wrapper?: string | Serializer
   meta?: any
-  logger?: boolean
 }
 
 export interface Sources {

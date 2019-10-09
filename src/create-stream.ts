@@ -1,10 +1,9 @@
 import i = require('iterate')
 import { Scuttlebutt } from './index'
 import { filter } from './utils'
-import { Sources, Update, StreamOptions, UpdateItems, LoggerService } from './interfaces'
+import { Sources, Update, StreamOptions, UpdateItems } from './interfaces'
 import { Duplex, OnClose } from './duplex'
 import { SerializedDuplex } from './serialized-duplex'
-import { DefaultNoopLogger, Logger } from './default-logger'
 import isPromise = require('is-promise')
 
 function validate(update: Update) {
@@ -32,15 +31,8 @@ interface Outgoing {
 
 export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}): SerializedDuplex {
   opts.name = opts.name || 'stream'
-  let logger: LoggerService
-  if (opts.logger === true) {
-    const context = opts.name
-    logger = sb.loggerEnabled ? sb.logger.createSubLogger(context) : new Logger(context)
-  } else {
-    logger = DefaultNoopLogger
-  }
 
-  logger.info('createStream:', opts)
+  const logger = sb.logger.ns(opts.name)
 
   // peerSources 是在当前 stream 上保存对端的 clocks
   let peerSources: Sources = {}
@@ -54,7 +46,6 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
   sb.streams++
 
   async function onData(update: Update | object | String) {
-    logger.debug('onData:', update)
     // 如果收到的数据是 Array，我们认为是 Update[]
     if (Array.isArray(update)) {
       if (!duplex.writable) return
@@ -64,6 +55,7 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
     } else if ('string' === typeof update) {
       const cmd = update
       if (cmd === 'SYNC') {
+        logger.log('SYNC received')
         syncRecv = true
         outer.emit('syncReceived')
         if (syncSent) {
@@ -98,7 +90,7 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
   let tail = opts.tail !== false // default to tail = true
 
   function start(data: Object) {
-    logger.debug('start with data', data)
+    logger.log('start with data: %o', data)
 
     const incoming = data as Outgoing
     if (!incoming || !incoming.clock) {
@@ -126,14 +118,13 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
         duplex.push(u)
       })
 
-      logger.debug('  sent history to peer:', history)
+      logger.log('sent "history" to peer:', history)
 
       sb.on('_update', onUpdate)
-      logger.debug('  mount onUpdate to ⚡_update')
 
       duplex.push('SYNC')
       syncSent = true
-      logger.debug('  sent SYNC to peer')
+      logger.debug('sent "SYNC" to peer')
 
       // when we have sent all history
       outer.emit('header', incoming)
@@ -159,27 +150,27 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
   // onUpdate 是 SB 上的 on('_update') 的监听函数
   // 用来处理是否“传播”流言
   function onUpdate(update: Update) {
-    logger.debug('onUpdate', update)
+    logger.log('got "update" on stream: %o', update)
     // validate 完成基本的数据结构校验，是否符合 [value, ts, source]
     // 确认当前的 update 是否比 stream 上保存的对端的 clocks 里记录的新
     if (!validate(update) || !filter(update, peerSources)) return
 
     // this update comes from our peer stream, don't send back
     if (update[UpdateItems.From] === peerId) {
-      logger.debug(`  update ignored by peerId:`, { peerId })
+      logger.debug(`"update" ignored by peerId: '${peerId}'`)
       return
     }
 
     // 传播之前我们首先需要检查过滤条件
     if (duplex.readable && peerAccept && !sb.isAccepted(peerAccept, update)) {
-      logger.debug(`  update ignored by peerAccept`, { update, peerAccept })
+      logger.debug(`"update" ignored by peerAccept: %o`, { update, peerAccept })
       return
     }
 
     // send 'scuttlebutt' to peer
     update[UpdateItems.From] = sb.id
     duplex.push(update)
-    logger.debug('  sent update to peer:', update)
+    logger.debug('sent "update" to peer: %o', update)
 
     // really, this should happen before emitting.
     // 只要发送到对端，就更新一下自己这边的对方的 clocks；这是"乐观"更新
@@ -187,7 +178,7 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
     const ts = update[UpdateItems.Timestamp]
     const source = update[UpdateItems.SourceId]
     peerSources[source] = ts
-    logger.debug('  peerSources updated', peerSources)
+    logger.debug('updated peerSources to', peerSources)
   }
 
   function dispose() {
@@ -208,7 +199,7 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
   if (duplex.readable) {
     // push sync data to peer if readable === true
     duplex.push(outgoing)
-    logger.info(`  outgoing sent:`, outgoing)
+    logger.log(`sent "outgoing": %o`, outgoing)
 
     if (!duplex.writable && !opts.clock) {
       // Non-writable stream will start immediately without waiting for SYNC message
@@ -219,7 +210,7 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
   } else if (opts.sendClock) {
     // opts.sendClock === true means send the clock forcedly even when the stream is non-readable
     duplex.push(outgoing)
-    logger.info(`  outgoing sent:`, outgoing)
+    logger.log(`sent "outgoing": %o`, outgoing)
   } // otherwise, will send nothing when stream is non-readable
 
   sb.once('dispose', dispose)

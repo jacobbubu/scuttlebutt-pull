@@ -30,8 +30,8 @@
     "semantic-release-prepare": "ts-node tools/semantic-release-prepare",
     "precommit": "lint-staged",
     "example:model": "tsnd --respawn --transpileOnly examples/model.ts",
-    "travis-deploy-once": "travis-deploy-once",
-    "example:async-model": "tsnd --respawn --transpileOnly examples/async-model.ts"
+    "example:async-model": "tsnd --respawn --transpileOnly examples/async-model.ts",
+    "travis-deploy-once": "travis-deploy-once"
   },
   "husky": {
     "hooks": {
@@ -122,6 +122,7 @@
     "validate-npm-package-name": "^3.0.0"
   },
   "dependencies": {
+    "@jacobbubu/debug": "^1.0.0",
     "@jacobbubu/pull-split": "^0.2.2",
     "cli-color": "^1.4.0",
     "duplex": "^1.0.0",
@@ -129,8 +130,7 @@
     "iterate": "^0.1.1",
     "monotonic-timestamp": "0.0.9",
     "pull-pushable": "^2.2.0",
-    "pull-stream": "^3.6.14",
-    "supports-color": "^7.1.0"
+    "pull-stream": "^3.6.14"
   },
   "publishConfig": {
     "access": "public"
