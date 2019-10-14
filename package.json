@@ -32,13 +32,6 @@
     "example:model": "tsnd --respawn examples/model.ts",
     "example:async-model": "tsnd --respawn examples/async-model.ts"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm run precommit",
-      "commit-msg": "validate-commit-msg",
-      "pre-push": "npm run test:prod && npm run build"
-    }
-  },
   "lint-staged": {
     "{src,test}/**/*.ts": [
       "prettier --write",
