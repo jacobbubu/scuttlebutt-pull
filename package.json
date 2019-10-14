@@ -30,8 +30,7 @@
     "semantic-release-prepare": "ts-node tools/semantic-release-prepare",
     "precommit": "lint-staged",
     "example:model": "tsnd --respawn --transpileOnly examples/model.ts",
-    "example:async-model": "tsnd --respawn --transpileOnly examples/async-model.ts",
-    "travis-deploy-once": "travis-deploy-once"
+    "example:async-model": "tsnd --respawn --transpileOnly examples/async-model.ts"
   },
   "husky": {
     "hooks": {
@@ -109,7 +108,6 @@
     "replace-in-file": "^4.1.0",
     "rimraf": "^2.6.3",
     "semantic-release": "^15.13.24",
-    "travis-deploy-once": "^5.0.11",
     "ts-jest": "^24.0.2",
     "ts-node": "^8.3.0",
     "ts-node-dev": "^1.0.0-pre.43",

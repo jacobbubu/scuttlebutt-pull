@@ -1,14 +1,26 @@
 language: node_js
+
+cache:
+  directories:
+    - ~/.npm
+
 branches:
   only:
     - master
-    - /^greenkeeper/.*$/
+
 notifications:
-  email: false
+  email:
+    - rong.shen@gmail.com
+
 node_js:
   - '10'
+  - '8'
+
 script:
   - npm run test:prod && npm run build
-after_success:
-  - npm run report-coverage
-  - npm run travis-deploy-once "npm run semantic-release"
+
+jobs:
+  include:
+    - stage: release
+      name: "Semantic Release"
+      script: npm run semantic-release
