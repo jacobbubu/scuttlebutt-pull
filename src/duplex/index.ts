@@ -9,7 +9,7 @@ export interface DuplexInterface {
 
 // export type OnData = (data: any, cb: (err?: Error | string | null) => void) => void
 export type OnData = (data: any) => Promise<any>
-export type OnClose = () => void | Promise<any>
+export type OnClose = (err?: Error | string | null) => void | Promise<any>
 
 class Duplex extends EventEmitter implements DuplexInterface {
   private _readable = true
@@ -24,7 +24,8 @@ class Duplex extends EventEmitter implements DuplexInterface {
         return
       }
       if (endOrError) {
-        throw endOrError
+        self.onClose && self.onClose(endOrError)
+        return
       }
       if (!self.onData) {
         read(null, next)
