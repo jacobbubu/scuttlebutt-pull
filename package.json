@@ -30,7 +30,8 @@
     "semantic-release-prepare": "ts-node tools/semantic-release-prepare",
     "precommit": "lint-staged",
     "example:model": "tsnd --respawn examples/model.ts",
-    "example:async-model": "tsnd --respawn examples/async-model.ts"
+    "example:async-model": "tsnd --respawn examples/async-model.ts",
+    "example:reliable-event": "tsnd --respawn examples/reliable-event.ts"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [
