@@ -1,3 +1,6 @@
+/// <reference path="../types/monotonic-timestamp/index.d.ts" />
+/// <reference path="../types/pull-pushable/index.d.ts" />
+
 import { EventEmitter } from 'events'
 import timestamp = require('monotonic-timestamp')
 import { link } from './duplex'
