@@ -46,7 +46,7 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
   sb.streams++
 
   async function onData(update: Update | object | String) {
-    // 如果收到的数据是 Array，我们认为是 Update[]
+    // Array means Update[]
     if (Array.isArray(update)) {
       if (!duplex.writable) return
       if (validate(update)) {
@@ -103,15 +103,20 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
     peerId = incoming.id
     peerAccept = incoming.accept
 
+    // won't send history out if the stream is write-only
+    if (!duplex.readable) {
+      return promiseResolved([])
+    }
+
     // call this.history to calculate the delta between peers
     const history = sb.history(peerSources, peerAccept)
     if (isPromise(history)) {
-      return history.then(promiseResoved)
+      return history.then(promiseResolved)
     } else {
-      promiseResoved(history)
+      promiseResolved(history)
     }
 
-    function promiseResoved(history: Update[]) {
+    function promiseResolved(history: Update[]) {
       i.each(history, function(update) {
         const u = [...update]
         u[UpdateItems.From] = sb.id
@@ -151,8 +156,13 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
   // 用来处理是否“传播”流言
   function onUpdate(update: Update) {
     logger.log('got "update" on stream: %o', update)
-    // validate 完成基本的数据结构校验，是否符合 [value, ts, source]
-    // 确认当前的 update 是否比 stream 上保存的对端的 clocks 里记录的新
+
+    // current stream is in write-only mode
+    if (!duplex.readable) {
+      logger.debug(`"update" ignored by it's non-readable flag`)
+      return
+    }
+
     if (!validate(update) || !filter(update, peerSources)) return
 
     // this update comes from our peer stream, don't send back
@@ -161,9 +171,11 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
       return
     }
 
-    // 传播之前我们首先需要检查过滤条件
-    if (duplex.readable && peerAccept && !sb.isAccepted(peerAccept, update)) {
-      logger.debug(`"update" ignored by peerAccept: %o`, { update, peerAccept })
+    if (peerAccept && !sb.isAccepted(peerAccept, update)) {
+      logger.debug(`"update" ignored by peerAccept: %o`, {
+        update,
+        peerAccept
+      })
       return
     }
 
