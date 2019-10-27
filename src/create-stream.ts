@@ -215,8 +215,7 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
 
     if (!duplex.writable && !opts.clock) {
       // Non-writable stream will start immediately without waiting for SYNC message
-      // notice that the start is an async function
-      start({ clock: {} })
+      start({ clock: outgoing.clock, id: outgoing.id, meta: outgoing.meta })
     }
     // otherwise, the start will be triggered by on(’data')
   } else if (opts.sendClock) {

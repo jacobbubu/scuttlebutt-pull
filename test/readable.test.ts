@@ -78,7 +78,7 @@ describe.only('readable', () => {
     expect(a.get(expected.key)).toBe(expected.valueA)
   })
 
-  it('createSourceStream & createSinkStream', async () => {
+  it('A is read-ony and B is write-only (changed after sync)', async () => {
     const a = new Model('A')
     const b = new Model('B')
 
@@ -86,7 +86,12 @@ describe.only('readable', () => {
     const s2 = b.createSinkStream({ name: 'b->a' })
 
     link(s1, s2)
+
+    await delay(50)
     a.set(expected.key, expected.valueA)
+
+    await delay(50)
+    expect(b.get(expected.key)).toBe(expected.valueA)
 
     await delay(50)
     b.set(expected.key, expected.valueB)
