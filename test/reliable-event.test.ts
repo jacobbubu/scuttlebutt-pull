@@ -1,6 +1,5 @@
 import { ReliableEvent, link } from '../src'
-
-const delay = (ms: number) => new Promise(resolved => setTimeout(resolved, ms))
+import { delay } from './utils'
 
 describe('reliable-event', () => {
   it('local event', () => {
