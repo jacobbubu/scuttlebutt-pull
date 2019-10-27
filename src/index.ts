@@ -140,7 +140,19 @@ class Scuttlebutt extends EventEmitter {
     return this.createStream(opts)
   }
 
+  createSinkStream(opts: StreamOptions = {}) {
+    opts.writable = true
+    opts.readable = false
+    return this.createStream(opts)
+  }
+
   createReadStream(opts: StreamOptions = {}) {
+    opts.writable = false
+    opts.readable = true
+    return this.createStream(opts)
+  }
+
+  createSourceStream(opts: StreamOptions = {}) {
     opts.writable = false
     opts.readable = true
     return this.createStream(opts)
