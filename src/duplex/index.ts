@@ -1,39 +1,40 @@
 import { EventEmitter } from 'events'
 import * as pull from 'pull-stream'
-import Pushable = require('pull-pushable')
+import { pushable, Read } from '@jacobbubu/pull-pushable'
 
 export interface DuplexInterface {
   readonly source: pull.Source<any>
   readonly sink: pull.Sink<any>
 }
 
-// export type OnData = (data: any, cb: (err?: Error | string | null) => void) => void
 export type OnData = (data: any) => Promise<any>
-export type OnClose = (err?: Error | string | null) => void | Promise<any>
+export type OnCloseError = Error | string | null
+export type OnClose = (err?: OnCloseError) => void | Promise<any>
 
 class Duplex extends EventEmitter implements DuplexInterface {
   private _readable = true
   private _writable = true
-  private _source: Pushable.Pushable<string> | undefined
+  private _ended: boolean = false
+  private _source: Read<string> | undefined
   private _sink: pull.Sink<string> = read => {
     const self = this
-    read(null, function next(endOrError, data) {
+    read(this._ended, function next(endOrError, data) {
       if (true === endOrError) {
         // emit 'close' when upstream has no more data
-        self.onClose && self.onClose()
+        self._finish()
         return
       }
       if (endOrError) {
-        self.onClose && self.onClose(endOrError)
+        self._finish(endOrError)
         return
       }
       if (!self.onData) {
-        read(null, next)
+        read(self._ended, next)
       } else {
         self
           .onData(data)
           .then(() => {
-            read(null, next)
+            read(self._ended, next)
           })
           .catch(err => read(err, next))
       }
@@ -69,7 +70,7 @@ class Duplex extends EventEmitter implements DuplexInterface {
   // 下游的 sink 从这里拉数据
   get source() {
     if (!this._source) {
-      this._source = Pushable()
+      this._source = pushable()
     }
     return this._source
   }
@@ -79,24 +80,24 @@ class Duplex extends EventEmitter implements DuplexInterface {
     return this._sink
   }
 
-  abort(err?: boolean | Error | string) {
-    this.source.end(err)
-  }
-
-  end() {
-    this.source.end()
+  end(err?: boolean | Error | string) {
+    this.source.end(err as any)
+    this._finish()
   }
 
   push(data: any) {
     this.source.push(data)
   }
+
+  _finish(err?: OnCloseError) {
+    if (!this._ended) {
+      this.onClose && this.onClose(err)
+    }
+    this._ended = true
+  }
 }
 
 export function link(a: DuplexInterface, b: DuplexInterface) {
-  // setImmediate(() => {
-  //   pull(a.source, b.sink)
-  //   pull(b.source, a.sink)
-  // })
   pull(a.source, b.sink)
   pull(b.source, a.sink)
 }

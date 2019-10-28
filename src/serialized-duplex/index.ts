@@ -45,4 +45,8 @@ export class SerializedDuplex extends EventEmitter implements DuplexInterface {
   get name() {
     return this.inner.name
   }
+
+  end() {
+    this.inner.end()
+  }
 }

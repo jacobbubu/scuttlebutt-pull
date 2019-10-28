@@ -96,7 +96,7 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
     if (!incoming || !incoming.clock) {
       duplex.emit('error')
       // 原本_end的实现是要发出最后的数据，同时排干 readable 缓存
-      return duplex.abort()
+      return duplex.end()
     }
 
     peerSources = incoming.clock
@@ -185,8 +185,6 @@ export default function createStream(sb: Scuttlebutt, opts: StreamOptions = {}):
     logger.debug('sent "update" to peer: %o', update)
 
     // really, this should happen before emitting.
-    // 只要发送到对端，就更新一下自己这边的对方的 clocks；这是"乐观"更新
-    // 如果对端实际未收到会如何？下次连接时 SYNC 自然就追上了
     const ts = update[UpdateItems.Timestamp]
     const source = update[UpdateItems.SourceId]
     peerSources[source] = ts

@@ -33,7 +33,8 @@
     "precommit": "lint-staged",
     "example:model": "tsnd --respawn examples/model.ts",
     "example:async-model": "tsnd --respawn examples/async-model.ts",
-    "example:reliable-event": "tsnd --respawn examples/reliable-event.ts"
+    "example:reliable-event": "tsnd --respawn examples/reliable-event.ts",
+    "example:stream-end": "tsnd --respawn examples/stream-end.ts"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [
@@ -113,16 +114,16 @@
     "validate-npm-package-name": "^3.0.0"
   },
   "dependencies": {
-    "@types/pull-stream": "^3.6.0",
-    "@types/is-promise": "^2.1.0",
     "@jacobbubu/debug": "^1.1.3",
+    "@jacobbubu/pull-pushable": "^1.0.0",
     "@jacobbubu/pull-split": "^0.2.2",
+    "@types/is-promise": "^2.1.0",
+    "@types/pull-stream": "^3.6.0",
     "cli-color": "^2.0.0",
     "duplex": "^1.0.0",
     "is-promise": "^2.1.0",
     "iterate": "^0.1.1",
     "monotonic-timestamp": "0.0.9",
-    "pull-pushable": "^2.2.0",
     "pull-stream": "^3.6.14"
   },
   "publishConfig": {
