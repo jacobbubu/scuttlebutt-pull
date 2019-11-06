@@ -13,8 +13,8 @@ notifications:
     - rong.shen@gmail.com
 
 node_js:
-  - '10'
-  - '8'
+  - "10"
+  - "8"
 
 script:
   - npm run test:prod && npm run build
@@ -23,4 +23,4 @@ jobs:
   include:
     - stage: release
       name: "Semantic Release"
-      script: npm run build && npm run semantic-release
+      script: npm run test:prod && npm run report-coverage && npm run build && npm run semantic-release
