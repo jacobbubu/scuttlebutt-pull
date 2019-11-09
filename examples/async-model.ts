@@ -1,5 +1,6 @@
+// process.env.DEBUG = 'sb*'
 import { AsyncModel, link } from '../src'
-import { printAsyncKeyValue } from './utils'
+import { printAsyncKeyValue, delay } from './utils'
 
 const main = async function() {
   const a = new AsyncModel({ id: 'A' })
@@ -9,12 +10,12 @@ const main = async function() {
   const s1 = a.createStream({ name: 'a->b' })
   const s2 = b.createStream({ name: 'b->a' })
 
-  console.log(`--- set 'foo'@${a.id}`)
-  await a.set('foo', 'changed by A')
+  // console.log(`--- set 'foo'@${a.id}`)
+  // await a.set('foo', 'changed by A')
 
   link(s1, s2)
 
-  await printAsyncKeyValue(a, 'foo')
+  await delay(10)
   await printAsyncKeyValue(b, 'foo')
 
   console.log(`--- set 'foo'@${b.id}`)

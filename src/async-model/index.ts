@@ -1,4 +1,4 @@
-import Scuttlebutt from '..'
+import { AsyncScuttlebutt } from '../async-scuttlebutt'
 import * as u from '../utils'
 import { MemoryAsyncModelStore as DefaultStore } from './memory-store'
 
@@ -12,7 +12,7 @@ import {
   ModelAccept
 } from '../interfaces'
 
-class AsyncModel extends Scuttlebutt {
+class AsyncModel extends AsyncScuttlebutt {
   public store: AsyncModelStoreBase
 
   constructor(opts?: ScuttlebuttOptions | string) {

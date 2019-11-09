@@ -1,6 +1,8 @@
 import { ReliableEvent, link } from '../src'
 import { delay } from './utils'
 
+jest.setTimeout(1000)
+
 describe('reliable-event', () => {
   it('local event', () => {
     const A = new ReliableEvent('A')
