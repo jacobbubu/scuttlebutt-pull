@@ -3,7 +3,7 @@ import { delay } from './utils'
 
 jest.setTimeout(1000)
 
-describe.only('readable', () => {
+describe('readable', () => {
   const expected = {
     key: 'foo',
     valueA: 'changed by A',

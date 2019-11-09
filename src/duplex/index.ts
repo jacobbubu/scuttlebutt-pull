@@ -1,53 +1,279 @@
 import { EventEmitter } from 'events'
 import * as pull from 'pull-stream'
-import { pushable, Read } from '@jacobbubu/pull-pushable'
+import { Debug } from '@jacobbubu/debug'
+import i = require('iterate')
+import * as jsonSerializer from './json-serializer'
 
-export interface DuplexInterface {
-  readonly source: pull.Source<any>
-  readonly sink: pull.Sink<any>
+import { Scuttlebutt } from '../index'
+import { filter } from '../utils'
+import { AsyncScuttlebutt } from '../async-scuttlebutt'
+import { Sources, Update, StreamOptions, UpdateItems, Serializer } from '../interfaces'
+
+type Abort = Error | boolean | null
+type EndOrError = Error | boolean | null
+type SourceCallback = (end: EndOrError, data?: any) => unknown
+type Read = (abort: Abort, cb: SourceCallback) => unknown
+type Sink = (read: Read) => unknown
+type OnClose = (err?: EndOrError) => void
+
+function validate(update: Update) {
+  /* tslint:disable */
+  if (
+    !(
+      Array.isArray(update) &&
+      'string' === typeof update[UpdateItems.SourceId] &&
+      '__proto__' !== update[UpdateItems.SourceId] && // THIS WOULD BREAK STUFF
+      'number' === typeof update[UpdateItems.Timestamp]
+    )
+  ) {
+    return false
+  }
+  /* tslint:enable */
+  return true
 }
 
-export type OnData = (data: any) => Promise<any>
-export type OnCloseError = Error | string | null
-export type OnClose = (err?: OnCloseError) => void | Promise<any>
+interface Outgoing {
+  id: string
+  clock: Sources
+  meta?: any
+  accept?: any
+}
 
-class Duplex extends EventEmitter implements DuplexInterface {
+class Duplex extends EventEmitter {
+  private _name: string
+  private _source: Read | undefined
+  private _sink: Sink | undefined
+  private _wrapper: string | Serializer
   private _readable = true
   private _writable = true
-  private _ended: boolean = false
-  private _source: Read<string> | undefined
-  private _sink: pull.Sink<string> = read => {
-    const self = this
-    read(this._ended, function next(endOrError, data) {
-      if (true === endOrError) {
-        // emit 'close' when upstream has no more data
-        self._finish()
-        return
-      }
-      if (endOrError) {
-        self._finish(endOrError)
-        return
-      }
-      if (!self.onData) {
-        read(self._ended, next)
-      } else {
-        self
-          .onData(data)
-          .then(() => {
-            read(self._ended, next)
-          })
-          .catch(err => read(err, next))
-      }
-    })
-    return undefined
+  private _ended: EndOrError = false
+  private _abort: Abort = false
+  private _syncSent = false
+  private _syncRecv = false
+  private _buffer: any[] = []
+  private _cb: SourceCallback | undefined
+  private _onclose: OnClose | undefined
+  private _isFirstRead = true
+  private _tail: boolean
+  private logger: Debug
+
+  public peerSources: Sources = {}
+  public peerAccept: any
+  public peerId = ''
+
+  constructor(readonly sb: Scuttlebutt | AsyncScuttlebutt, readonly opts: StreamOptions) {
+    super()
+
+    this._name = opts.name || 'stream'
+    this._wrapper = opts.wrapper || 'json'
+    this.logger = sb.logger.ns(this._name)
+
+    this._writable = opts.writable !== false
+    this._readable = opts.readable !== false
+
+    // Non-writable means we could skip receiving SYNC from peer
+    this._syncRecv = !this._writable
+
+    // Non-readable means we don't need to send SYNC to peer
+    this._syncSent = !this._readable
+
+    this._tail = opts.tail !== false // default to tail = true
+
+    sb.streams++
+    sb.once('dispose', this.end)
+
+    this.sb = sb
+
+    this._onclose = () => {
+      this.sb.removeListener('_update', this.onUpdate)
+      sb.removeListener('dispose', this.end)
+      this.sb.streams--
+      this.sb.emit('unstream', this.sb.streams)
+    }
   }
 
-  constructor(private _name: string = '', private onData?: OnData, private onClose?: OnClose) {
-    super()
+  private drain = () => {
+    if (!this._cb) {
+      // there is no downstream waiting for callback
+      if (this._ended && this._onclose) {
+        // perform _onclose regardless of whether there is data in the cache
+        let c = this._onclose
+        this._onclose = undefined
+        c(this._ended)
+      }
+      return
+    }
+
+    if (this._abort) {
+      // downstream is waiting for abort
+      this.callback(this._abort)
+    } else if (!this._buffer.length && this._ended) {
+      // we'd like to end and there is no left items to be sent
+      this.callback(this._ended)
+    } else if (this._buffer.length) {
+      this.callback(null, this._buffer.shift())
+    }
+  }
+
+  private callback = (err: EndOrError, data?: any) => {
+    let cb = this._cb
+    if (err && this._onclose) {
+      let c = this._onclose
+      this._onclose = undefined
+      c(err === true ? null : err)
+    }
+    this._cb = undefined
+    cb && cb(err, data)
+  }
+
+  private getOutgoing = () => {
+    const outgoing: Outgoing = { id: this.sb.id, clock: this.sb.sources }
+    if (this.sb.accept) {
+      outgoing.accept = this.sb.accept
+    }
+
+    if (this.opts.meta) {
+      outgoing.meta = this.opts.meta
+    }
+    return outgoing
+  }
+
+  // process any update ocurred on sb
+  private onUpdate = async (update: Update) => {
+    this.logger.log('got "update" on stream: %o', update)
+
+    // current stream is in write-only mode
+    if (!this._readable) {
+      this.logger.debug(`"update" ignored by it's non-readable flag`)
+      return
+    }
+
+    if (!validate(update) || !filter(update, this.peerSources)) return
+
+    // this update comes from our peer stream, don't send back
+    if (update[UpdateItems.From] === this.peerId) {
+      this.logger.debug(`"update" ignored by peerId: '${this.peerId}'`)
+      return
+    }
+
+    const isAccepted = this.peerAccept ? this.sb.isAccepted(this.peerAccept, update) : true
+
+    if (!isAccepted) {
+      this.logger.debug(`"update" ignored by peerAccept: %o`, {
+        update,
+        peerAccept: this.peerAccept
+      })
+      return
+    }
+
+    // send 'scuttlebutt' to peer
+    update[UpdateItems.From] = this.sb.id
+    this.push(update)
+    this.logger.debug('sent "update" to peer: %o', update)
+
+    // really, this should happen before emitting.
+    const ts = update[UpdateItems.Timestamp]
+    const source = update[UpdateItems.SourceId]
+    this.peerSources[source] = ts
+    this.logger.debug('updated peerSources to', this.peerSources)
+  }
+
+  private rawSource = (abort: Abort, cb: SourceCallback) => {
+    if (abort) {
+      this._abort = abort
+      // if there is already a cb waiting, abort it.
+      if (this._cb) {
+        this.callback(abort)
+      }
+    }
+    if (this._isFirstRead) {
+      this._isFirstRead = false
+      const outgoing = this.getOutgoing()
+      this.push(outgoing, true)
+      this.logger.log(`sent "outgoing": %o`, outgoing)
+    }
+    this._cb = cb
+    this.drain()
+  }
+
+  private rawSink = (read: Read) => {
+    const self = this
+    read(this._abort || this._ended, function next(end, update: Update | object | string) {
+      if (true === end) {
+        self.logger.debug('sink ended by peer(%s), %o', self.peerId, end)
+        self.end(end)
+        return
+      }
+
+      if (end) {
+        self.logger.error('sink reading errors, %o', end)
+        self.end(end)
+        return
+      }
+
+      self.logger.debug('sink reads data from peer(%s): %o', self.peerId, update)
+      // Array means Update[]
+      if (Array.isArray(update)) {
+        if (!self._writable) return
+
+        if (validate(update)) {
+          self.sb._update(update)
+        } // tslint:disable-next-line:strict-type-predicates
+      } else if ('string' === typeof update) {
+        const cmd = update
+        if (cmd === 'SYNC') {
+          self.logger.log('SYNC received')
+          self._syncRecv = true
+          self.emit('syncReceived')
+          if (self._syncSent) {
+            self.logger.log('emit synced')
+            self.emit('synced')
+          }
+        }
+      } else {
+        // it's a scuttlebutt digest(vector clocks) when clock is an object.
+        // tslint:disable:no-floating-promises
+        self.start(update).then(() => {
+          read(self._abort || self._ended, next)
+        })
+        return
+      }
+      read(self._abort || self._ended, next)
+    })
+  }
+
+  get source() {
+    if (!this._source) {
+      if (this._wrapper === 'raw') {
+        this._source = this.rawSource
+      } else if (this._wrapper === 'json') {
+        this._source = pull(this.rawSource as any, jsonSerializer.serialize())
+      } else if ('string' === typeof this._wrapper) {
+        throw new Error(`unsupported wrapper name(${this._wrapper})`)
+      } else {
+        this._source = pull(this.rawSource as any, this._wrapper.serialize())
+      }
+    }
+    return this._source
+  }
+
+  get sink() {
+    if (!this._sink) {
+      if (this._wrapper === 'raw') {
+        this._sink = this.rawSink
+      } else if (this._wrapper === 'json') {
+        this._sink = pull(jsonSerializer.parse(), this.rawSink as any) as any
+      } else if ('string' === typeof this._wrapper) {
+        throw new Error(`unsupported wrapper name(${this._wrapper})`)
+      } else {
+        this._sink = pull(this._wrapper.parse(), this.rawSink as any) as any
+      }
+    }
+    return this._sink
   }
 
   get name(): string {
-    return this._name || ''
+    return this._name
   }
 
   get readable(): boolean {
@@ -66,38 +292,93 @@ class Duplex extends EventEmitter implements DuplexInterface {
     this._writable = value
   }
 
-  // 这是 duplex 的 readable 的部分, sb 往里写数据
-  // 下游的 sink 从这里拉数据
-  get source() {
-    if (!this._source) {
-      this._source = pushable()
+  public push = (data: unknown, toHead = false) => {
+    if (this._ended) return
+    // if sink already waiting,
+    // we can call back directly.
+    if (this._cb) {
+      this.callback(this._abort, data)
+      return
     }
-    return this._source
-  }
-
-  // 这是 duplex 的 writable 部分, sb 通过 on(’data‘) 从这里读取数据
-  get sink() {
-    return this._sink
-  }
-
-  end(err?: boolean | Error | string) {
-    this.source.end(err as any)
-    this._finish()
-  }
-
-  push(data: any) {
-    this.source.push(data)
-  }
-
-  _finish(err?: OnCloseError) {
-    if (!this._ended) {
-      this.onClose && this.onClose(err)
+    // otherwise buffer data
+    if (toHead) {
+      this._buffer.unshift(data)
+    } else {
+      this._buffer.push(data)
     }
-    this._ended = true
+  }
+
+  public end = (end?: EndOrError) => {
+    this._ended = this._ended || end || true
+    // attempt to drain
+    this.drain()
+  }
+
+  public start = async (data: Object) => {
+    this.logger.log('start with data: %o', data)
+    const incoming = data as Outgoing
+    if (!incoming || !incoming.clock) {
+      this.emit('error')
+      return this.end()
+    }
+    this.peerSources = incoming.clock
+    this.peerId = incoming.id
+    this.peerAccept = incoming.accept
+
+    const self = this
+
+    // won't send history out if the stream is write-only
+    if (!this._readable) {
+      this.sb.on('_update', this.onUpdate)
+      return rest()
+    }
+
+    // call this.history to calculate the delta between peers
+    if (this.sb instanceof AsyncScuttlebutt) {
+      await this.sb.lockForHistory(async () => {
+        const history = await this.sb.history(this.peerSources, this.peerAccept)
+        i.each(history, function(update) {
+          const u = [...update]
+          u[UpdateItems.From] = self.sb.id
+          self.push(u)
+        })
+
+        this.logger.log('sent "history" to peer:', history)
+        this.sb.on('_update', this.onUpdate)
+      })
+      rest()
+    } else {
+      const history = this.sb.history(this.peerSources, this.peerAccept)
+      const self = this
+      i.each(history, function(update) {
+        const u = [...update]
+        u[UpdateItems.From] = self.sb.id
+        self.push(u)
+      })
+
+      this.logger.log('sent "history" to peer(%s):', self.peerId, history)
+      this.sb.on('_update', this.onUpdate)
+      rest()
+    }
+
+    function rest() {
+      self.push('SYNC')
+      self._syncSent = true
+      self.logger.debug('sent "SYNC" to peer(%s)', self.peerId)
+
+      // when we have sent all history
+      self.emit('header', incoming)
+      self.emit('syncSent')
+      // when we have received all history
+      // emit 'synced' when this stream has synced.
+      if (self._syncRecv) self.emit('synced')
+
+      if (!self._tail) self.end()
+    }
   }
 }
 
-export function link(a: DuplexInterface, b: DuplexInterface) {
+export function link(a: any, b: any) {
   pull(a.source, b.sink)
   pull(b.source, a.sink)
 }

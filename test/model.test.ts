@@ -1,5 +1,7 @@
 import { Model, link } from '../src'
 
+jest.setTimeout(1000)
+
 describe('model', () => {
   const expected = {
     key: 'foo',
