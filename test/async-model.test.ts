@@ -23,6 +23,7 @@ describe('async-model', () => {
       if (!--c) done()
     })
 
+    // tslint:disable-next-line:no-floating-promises
     a.set(expected.key, expected.valueA)
   })
 
