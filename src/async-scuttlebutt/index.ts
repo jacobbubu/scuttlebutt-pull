@@ -162,6 +162,10 @@ class AsyncScuttlebutt extends EventEmitter {
     return this
   }
 
+  get clones() {
+    return this._clones
+  }
+
   clone() {
     const A = this
     const B = new (A.constructor as ObjectConstructor)() as AsyncScuttlebutt
@@ -170,12 +174,11 @@ class AsyncScuttlebutt extends EventEmitter {
 
     const a = A.createStream({ wrapper: 'raw' })
     const b = B.createStream({ wrapper: 'raw' })
-    // streamDone(b, () => {
-    //   A._clones--
-    //   emit.call(A, 'unclone', A._clones)
-    // })
     link(a, b)
-    a.end()
+    a.on('synced', () => {
+      a.end()
+      A.emit('cloned', B, A._clones)
+    })
     return B
   }
 }

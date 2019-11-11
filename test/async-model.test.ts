@@ -1,4 +1,5 @@
 import { AsyncModel, link } from '../src'
+import { delay } from './utils'
 
 describe('async-model', () => {
   const expected = {
@@ -53,5 +54,20 @@ describe('async-model', () => {
     })
 
     link(s1, s2)
+  })
+
+  it('clone', done => {
+    const a = new AsyncModel('A')
+    a.set(expected.key, expected.valueA)
+    a.on('cloned', async (b, clones) => {
+      expect(await b.get('foo')).toBe(expected.valueA)
+      expect(clones).toBe(1)
+      await b.set(expected.key, expected.valueB)
+      expect(await a.get('foo')).toBe(expected.valueA)
+      expect(await b.get('foo')).toBe(expected.valueB)
+      expect(b.clones).toBe(0)
+      done()
+    })
+    a.clone()
   })
 })

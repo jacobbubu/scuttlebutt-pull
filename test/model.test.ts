@@ -1,4 +1,5 @@
 import { Model, link } from '../src'
+import { delay } from './utils'
 
 jest.setTimeout(1000)
 
@@ -89,5 +90,21 @@ describe('model', () => {
     })
 
     link(s1, s2)
+  })
+
+  it('clone', done => {
+    const a = new Model('A')
+    a.set(expected.key, expected.valueA)
+    a.on('cloned', async (b, clones) => {
+      expect(b.get('foo')).toBe(expected.valueA)
+      expect(clones).toBe(1)
+      b.set(expected.key, expected.valueB)
+      await delay(10)
+      expect(a.get('foo')).toBe(expected.valueA)
+      expect(b.get('foo')).toBe(expected.valueB)
+      expect(b.clones).toBe(0)
+      done()
+    })
+    a.clone()
   })
 })
