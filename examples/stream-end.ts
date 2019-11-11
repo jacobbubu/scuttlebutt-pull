@@ -20,4 +20,5 @@ const main = async () => {
   console.log(a.listenerCount('_update'), b.listenerCount('_update'))
 }
 
+// tslint:disable-next-line:no-floating-promises
 main()

@@ -20,4 +20,5 @@ const main = async () => {
   printKeyValue(a, 'foo')
 }
 
+// tslint:disable-next-line:no-floating-promises
 main()

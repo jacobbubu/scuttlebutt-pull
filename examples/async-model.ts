@@ -31,4 +31,5 @@ const main = async function() {
   await printAsyncKeyValue(b, 'ignored')
 }
 
+// tslint:disable-next-line:no-floating-promises
 main()

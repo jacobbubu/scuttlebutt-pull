@@ -33,6 +33,7 @@ describe('async-model', () => {
     const s1 = a.createStream({ name: 'a->b' })
     const s2 = b.createStream({ name: 'b->a' })
 
+    // tslint:disable-next-line:no-floating-promises
     a.set(expected.key, expected.valueA)
 
     b.on('changedByPeer', async (key, value, sourceId) => {
@@ -50,7 +51,7 @@ describe('async-model', () => {
         done()
       })
 
-      b.set(expected.key, expected.valueB)
+      await b.set(expected.key, expected.valueB)
     })
 
     link(s1, s2)
@@ -58,6 +59,7 @@ describe('async-model', () => {
 
   it('clone', done => {
     const a = new AsyncModel('A')
+    // tslint:disable-next-line:no-floating-promises
     a.set(expected.key, expected.valueA)
     a.on('cloned', async (b, clones) => {
       expect(await b.get('foo')).toBe(expected.valueA)
