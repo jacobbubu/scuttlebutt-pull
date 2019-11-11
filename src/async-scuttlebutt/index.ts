@@ -72,55 +72,57 @@ class AsyncScuttlebutt extends EventEmitter {
 
   // private method
   async _update(update: Update) {
-    this.logger.info('_update: %o', update)
+    return this.lockForHistory(async () => {
+      this.logger.info('_update: %o', update)
 
-    const ts = update[UpdateItems.Timestamp]
-    const sourceId = update[UpdateItems.SourceId]
-    const latest = this.sources[sourceId] || 0
+      const ts = update[UpdateItems.Timestamp]
+      const sourceId = update[UpdateItems.SourceId]
+      const latest = this.sources[sourceId] || 0
 
-    if (latest >= ts) {
-      this.logger.debug('update is older, ignore it', { latest, ts, diff: ts - latest })
-      this.emit('old_data', update)
-      return false
-    }
-
-    this.sources[sourceId] = ts
-    this.logger.debug('update our sources to', this.sources)
-
-    const self = this
-
-    async function didVerification(verified: boolean) {
-      // I'm not sure how what should happen if a async verification
-      // errors. if it's an key not found - that is a verification fail,
-      // not a error. if it's genuine error, really you should queue and
-      // try again? or replay the message later
-      // this should be done my the security plugin though, not scuttlebutt.
-      if (!verified) {
-        self.emit('unverified_data', update)
+      if (latest >= ts) {
+        this.logger.debug('update is older, ignore it', { latest, ts, diff: ts - latest })
+        this.emit('old_data', update)
         return false
       }
 
-      // emit '_update' event to notify every streams on this SB
-      const applied = await self.applyUpdate(update)
-      if (applied) {
-        self.emit('_update', update)
-        self.logger.debug('applied "update" and fired ⚡_update')
-      }
-      return applied
-    }
+      this.sources[sourceId] = ts
+      this.logger.debug('update our sources to', this.sources)
 
-    if (sourceId !== this.id) {
-      return this._verify ? didVerification(this._verify(update)) : didVerification(true)
-    } else {
-      if (this._sign) {
-        update[UpdateItems.Singed] = this._sign(update)
+      const self = this
+
+      async function didVerification(verified: boolean) {
+        // I'm not sure how what should happen if a async verification
+        // errors. if it's an key not found - that is a verification fail,
+        // not a error. if it's genuine error, really you should queue and
+        // try again? or replay the message later
+        // this should be done my the security plugin though, not scuttlebutt.
+        if (!verified) {
+          self.emit('unverified_data', update)
+          return false
+        }
+
+        // emit '_update' event to notify every streams on this SB
+        const applied = await self.applyUpdate(update)
+        if (applied) {
+          self.emit('_update', update)
+          self.logger.debug('applied "update" and fired ⚡_update')
+        }
+        return applied
       }
-      return didVerification(true)
-    }
+
+      if (sourceId !== this.id) {
+        return this._verify ? didVerification(this._verify(update)) : didVerification(true)
+      } else {
+        if (this._sign) {
+          update[UpdateItems.Singed] = this._sign(update)
+        }
+        return didVerification(true)
+      }
+    })
   }
 
   async localUpdate(trx: any) {
-    return this.lockForHistory(async () => this._update([trx, timestamp(), this.id]))
+    return this._update([trx, timestamp(), this.id])
   }
 
   createStream(opts: StreamOptions = {}) {

@@ -16,15 +16,15 @@ describe('async-model-accepted', () => {
     valueA: 'changed by A'
   }
 
-  it('whitelist-filter out in history', done => {
+  it('whitelist-filter out in history', async done => {
     const a = new AsyncModel('A')
     const b = new AsyncModel({ id: 'B', accept })
 
     const s1 = a.createStream({ name: 'a->b' })
     const s2 = b.createStream({ name: 'b->a' })
 
-    a.set(expected.key, expected.valueA)
-    a.set(ignored.key, ignored.valueA)
+    await a.set(expected.key, expected.valueA)
+    await a.set(ignored.key, ignored.valueA)
 
     s2.on('synced', async () => {
       expect(await b.get(expected.key)).toBe(expected.valueA)

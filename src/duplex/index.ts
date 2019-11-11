@@ -217,7 +217,16 @@ class Duplex extends EventEmitter {
         if (!self._writable) return
 
         if (validate(update)) {
-          self.sb._update(update)
+          if (self.sb instanceof AsyncScuttlebutt) {
+            // tslint:disable:no-floating-promises
+            self.sb._update(update).then(() => {
+              read(self._abort || self._ended, next)
+            })
+            // for async sb._update, we should avoid re-calling read in the sync branch
+            return
+          } else {
+            self.sb._update(update)
+          }
         } // tslint:disable-next-line:strict-type-predicates
       } else if ('string' === typeof update) {
         const cmd = update
@@ -236,6 +245,7 @@ class Duplex extends EventEmitter {
         self.start(update).then(() => {
           read(self._abort || self._ended, next)
         })
+        // for async sb.localUpdate, we should avoid re-calling read in the sync branch
         return
       }
       read(self._abort || self._ended, next)

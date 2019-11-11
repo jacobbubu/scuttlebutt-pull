@@ -10,8 +10,7 @@ const main = async function() {
   const s1 = a.createStream({ name: 'a->b' })
   const s2 = b.createStream({ name: 'b->a' })
 
-  // console.log(`--- set 'foo'@${a.id}`)
-  // await a.set('foo', 'changed by A')
+  await a.set('foo', 'changed by A')
 
   link(s1, s2)
 
