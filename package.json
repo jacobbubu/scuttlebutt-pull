@@ -35,7 +35,8 @@
     "example:clone": "tsnd --respawn examples/clone.ts",
     "example:async-model": "tsnd --respawn examples/async-model.ts",
     "example:reliable-event": "tsnd --respawn examples/reliable-event.ts",
-    "example:stream-end": "tsnd --respawn examples/stream-end.ts"
+    "example:stream-end": "tsnd --respawn examples/stream-end.ts",
+    "example:readable-model": "tsnd --respawn examples/readable-model.ts"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [

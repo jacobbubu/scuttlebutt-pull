@@ -211,7 +211,11 @@ class Duplex extends EventEmitter {
         return
       }
 
-      self.logger.debug('sink reads data from peer(%s): %o', self.peerId, update)
+      self.logger.debug(
+        'sink reads data from peer(%s): %o',
+        self.peerId || (update as Outgoing).id,
+        update
+      )
       // Array means Update[]
       if (Array.isArray(update)) {
         if (!self._writable) return
@@ -231,22 +235,33 @@ class Duplex extends EventEmitter {
       } else if ('string' === typeof update) {
         const cmd = update
         if (cmd === 'SYNC') {
-          self.logger.log('SYNC received')
-          self._syncRecv = true
-          self.emit('syncReceived')
-          if (self._syncSent) {
-            self.logger.log('emit synced')
-            self.emit('synced')
+          if (self._writable) {
+            self.logger.log('SYNC received')
+            self._syncRecv = true
+            self.emit('syncReceived')
+            if (self._syncSent) {
+              self.logger.log('emit synced')
+              self.emit('synced')
+            }
+          } else {
+            self.logger.log(`ignore peer's(${self.peerId}) SYNC due to our non-writable setting`)
           }
         }
       } else {
-        // it's a scuttlebutt digest(vector clocks) when clock is an object.
-        // tslint:disable:no-floating-promises
-        self.start(update).then(() => {
-          read(self._abort || self._ended, next)
-        })
-        // for async sb.localUpdate, we should avoid re-calling read in the sync branch
-        return
+        if (self._readable) {
+          // it's a scuttlebutt digest(vector clocks) when clock is an object.
+          // tslint:disable:no-floating-promises
+          self.start(update).then(() => {
+            read(self._abort || self._ended, next)
+          })
+          // for async sb.localUpdate, we should avoid re-calling read in the sync branch
+          return
+        } else {
+          self.peerId = (update as Outgoing).id
+          self.logger.log(
+            `ignore peer's(${self.peerId}) outgoing data due to our non-readable setting`
+          )
+        }
       }
       read(self._abort || self._ended, next)
     })
@@ -337,9 +352,8 @@ class Duplex extends EventEmitter {
 
     const self = this
 
-    // won't send history out if the stream is write-only
+    // won't send history/SYNC abd further update out if the stream is write-only
     if (!this._readable) {
-      this.sb.on('_update', this.onUpdate)
       return rest()
     }
 
@@ -353,8 +367,15 @@ class Duplex extends EventEmitter {
           self.push(u)
         })
 
-        this.logger.log('sent "history" to peer:', history)
+        this.logger.log('"history" has been sent to peer:', history)
         this.sb.on('_update', this.onUpdate)
+
+        if (self._readable) {
+          self.push('SYNC')
+          self._syncSent = true
+          self.logger.debug('"SYNC" has been sent to peer(%s)', self.peerId)
+          self.emit('syncSent')
+        }
       })
       rest()
     } else {
@@ -366,22 +387,28 @@ class Duplex extends EventEmitter {
         self.push(u)
       })
 
-      this.logger.log('sent "history" to peer(%s):', self.peerId, history)
+      this.logger.log('"history" to peer(%s) has been sent:', self.peerId, history)
       this.sb.on('_update', this.onUpdate)
+
+      if (self._readable) {
+        self.push('SYNC')
+        self._syncSent = true
+        self.logger.debug('"SYNC" has been sent to peer(%s)', self.peerId)
+        self.emit('syncSent')
+      }
+
       rest()
     }
 
     function rest() {
-      self.push('SYNC')
-      self._syncSent = true
-      self.logger.debug('sent "SYNC" to peer(%s)', self.peerId)
-
       // when we have sent all history
       self.emit('header', incoming)
-      self.emit('syncSent')
       // when we have received all history
       // emit 'synced' when this stream has synced.
-      if (self._syncRecv) self.emit('synced')
+      if (self._syncRecv) {
+        self.logger.log('emit synced')
+        self.emit('synced')
+      }
 
       if (!self._tail) self.end()
     }

@@ -102,13 +102,19 @@ class Scuttlebutt extends EventEmitter {
       if (isPromise(r)) {
         return r.then(updated => {
           if (updated) self.emit('_update', update)
-          self.logger.debug('applied "update" and fired ⚡_update')
+          self.logger.debug(
+            'applied "update" and fired ⚡_update, total listeners:',
+            self.listenerCount('_update')
+          )
           return updated
         })
       } else {
         if (r) {
           self.emit('_update', update)
-          self.logger.debug('applied "update" and fired ⚡_update')
+          self.logger.debug(
+            'applied "update" and fired ⚡_update, total listeners:',
+            self.listenerCount('_update')
+          )
         }
         return r
       }
