@@ -45,4 +45,36 @@ describe('reliable-event', () => {
     expect(bFired).toHaveBeenCalledTimes(data.A.concat(data.B).length)
     data.B.forEach((v, i) => expect(bFired).toHaveBeenNthCalledWith(i + 1, v))
   })
+
+  it('isAccepted', async () => {
+    const accept = { whitelist: ['a'] }
+    const A = new ReliableEvent('A')
+    const B = new ReliableEvent({ id: 'B', accept })
+
+    const s1 = A.createStream({ name: 'a->b' })
+    const s2 = B.createStream({ name: 'b->a' })
+
+    link(s1, s2)
+
+    const aFiredA = jest.fn()
+    const aFiredB = jest.fn()
+    const bFiredA = jest.fn()
+    const bFiredB = jest.fn()
+
+    A.on('a', aFiredA)
+    A.on('b', aFiredB)
+
+    B.on('a', bFiredA)
+    B.on('b', bFiredB)
+
+    A.push('a', 1)
+    A.push('b', 1)
+
+    await delay(50)
+
+    expect(aFiredA).toHaveBeenCalled()
+    expect(aFiredB).toHaveBeenCalled()
+    expect(bFiredA).toHaveBeenCalled()
+    expect(bFiredB).toBeCalledTimes(0)
+  })
 })

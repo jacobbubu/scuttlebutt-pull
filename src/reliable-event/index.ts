@@ -50,8 +50,12 @@ class ReliableEvent extends Scuttlebutt {
 
   history(peerSources: Sources, peerAccept?: ModelAccept) {
     const h: Update[] = []
-    each(this.events, function(eventsByKey: Update[]) {
-      eventsByKey.forEach((update: Update) => {
+
+    Object.keys(this.events).forEach(key => {
+      if (peerAccept && !this.isAccepted(peerAccept, [[key], 0, this.id])) {
+        return
+      }
+      this.events[key].forEach((update: Update) => {
         if (u.filter(update, peerSources)) {
           h.push(update)
         }
