@@ -7,9 +7,12 @@ describe('reliable-event', () => {
   it('local event', () => {
     const A = new ReliableEvent('A')
     const fired = jest.fn()
+    const generalEventCallback = jest.fn()
     A.on('a', fired)
+    A.on('__fired__', generalEventCallback)
     A.push('a', 'aardvark')
-    expect(fired).toHaveBeenCalled()
+    expect(fired).toHaveBeenCalledWith('aardvark')
+    expect(generalEventCallback).toHaveBeenCalledWith('a', 'aardvark')
   })
 
   it('remote event', async () => {

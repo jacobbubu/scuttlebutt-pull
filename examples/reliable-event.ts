@@ -27,10 +27,14 @@ setTimeout(() => {
   a.push('CRITICAL', 'The 🔋 is about to 💥!')
 }, 2000)
 
-b.on('ota', event => {
-  console.log(`Received@${b.id} (ota): ${event}`)
-})
+// b.on('ota', event => {
+//   console.log(`Received@${b.id} (ota): ${event}`)
+// })
 
-b.on('CRITICAL', event => {
-  console.log(`Received@${b.id} (CRITICAL): ${event}`)
+// b.on('CRITICAL', event => {
+//   console.log(`Received@${b.id} (CRITICAL): ${event}`)
+// })
+
+b.on('__fired__', (eventName, value) => {
+  console.log(`Received@${b.id} (${eventName}): ${value}`)
 })

@@ -30,6 +30,7 @@ class ReliableEvent extends Scuttlebutt {
     this.events[key].push(update)
     // emit the event.
     this.emit.apply(this, update[0])
+    this.emit('__fired__', ...update[0])
     return true
   }
 
