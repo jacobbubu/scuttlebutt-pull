@@ -54,6 +54,8 @@ class Duplex extends EventEmitter {
   private _cb: SourceCallback | undefined
   private _onclose: OnClose | undefined
   private _isFirstRead = true
+  private _sentCounter = 0 // update count that the stream has sent
+  private _receivedCounter = 0 // update count that the stream has received
   private _tail: boolean
   private logger: Debug
 
@@ -111,7 +113,15 @@ class Duplex extends EventEmitter {
       // we'd like to end and there is no left items to be sent
       this.callback(this._ended)
     } else if (this._buffer.length) {
-      this.callback(null, this._buffer.shift())
+      const payload = this._buffer.shift()
+      this.callback(null, payload)
+
+      // fire this event when the payload has been read by downstream
+      if (Array.isArray(payload)) {
+        // if payload is an update
+        this._sentCounter++
+        this.emit('updateSent', this, payload, this._sentCounter, `${this.sb.id}/${this.name}`)
+      }
     }
   }
 
@@ -218,6 +228,16 @@ class Duplex extends EventEmitter {
       )
       // Array means Update[]
       if (Array.isArray(update)) {
+        // counting the update that current stream received
+        self._receivedCounter++
+        self.emit(
+          'updateReceived',
+          self,
+          update,
+          self._receivedCounter,
+          `${self.sb.id}/${self.name}`
+        )
+
         if (!self._writable) return
 
         if (validate(update)) {
