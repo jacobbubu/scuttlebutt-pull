@@ -388,7 +388,6 @@ class Duplex extends EventEmitter {
         })
 
         this.logger.log('"history" has been sent to peer:', history)
-        this.sb.on('_update', this.onUpdate)
 
         if (self._readable) {
           self.push('SYNC')
@@ -396,6 +395,8 @@ class Duplex extends EventEmitter {
           self.logger.debug('"SYNC" has been sent to peer(%s)', self.peerId)
           self.emit('syncSent')
         }
+
+        this.sb.on('_update', this.onUpdate)
       })
       rest()
     } else {
@@ -408,7 +409,6 @@ class Duplex extends EventEmitter {
       })
 
       this.logger.log('"history" to peer(%s) has been sent:', self.peerId, history)
-      this.sb.on('_update', this.onUpdate)
 
       if (self._readable) {
         self.push('SYNC')
@@ -416,6 +416,8 @@ class Duplex extends EventEmitter {
         self.logger.debug('"SYNC" has been sent to peer(%s)', self.peerId)
         self.emit('syncSent')
       }
+
+      this.sb.on('_update', this.onUpdate)
 
       rest()
     }
