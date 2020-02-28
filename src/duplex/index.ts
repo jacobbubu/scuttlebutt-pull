@@ -126,13 +126,16 @@ class Duplex extends EventEmitter {
       c(err === true ? null : err)
     }
     this._cb = undefined
-    cb && cb(err, data)
 
-    // fire this event when the payload has been read by downstream
-    if (!err && Array.isArray(data)) {
-      // if the payload is an update
-      this._sentCounter++
-      this.emit('updateSent', this, data, this._sentCounter, `${this.sb.id}/${this.name}`)
+    if (cb) {
+      cb(err, data)
+
+      // fire this event when the payload has been read by downstream
+      if (!err && Array.isArray(data)) {
+        // if the payload is an update
+        this._sentCounter++
+        this.emit('updateSent', this, data, this._sentCounter, `${this.sb.id}/${this.name}`)
+      }
     }
   }
 
