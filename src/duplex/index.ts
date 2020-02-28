@@ -163,6 +163,10 @@ class Duplex extends EventEmitter {
     // this update comes from our peer stream, don't send back
     if (update[UpdateItems.From] === this.peerId) {
       this.logger.debug(`"update" ignored by peerId: '${this.peerId}'`)
+
+      // now we know that our peer has the latest knowledge of UpdateItems.From at time "UpdateItems.Timestamp"
+      this.peerSources[UpdateItems.From] = update[UpdateItems.Timestamp]
+      this.logger.debug('updated peerSources to', this.peerSources)
       return
     }
 
