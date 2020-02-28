@@ -115,13 +115,6 @@ class Duplex extends EventEmitter {
     } else if (this._buffer.length) {
       const payload = this._buffer.shift()
       this.callback(null, payload)
-
-      // fire this event when the payload has been read by downstream
-      if (Array.isArray(payload)) {
-        // if payload is an update
-        this._sentCounter++
-        this.emit('updateSent', this, payload, this._sentCounter, `${this.sb.id}/${this.name}`)
-      }
     }
   }
 
@@ -134,6 +127,13 @@ class Duplex extends EventEmitter {
     }
     this._cb = undefined
     cb && cb(err, data)
+
+    // fire this event when the payload has been read by downstream
+    if (!err && Array.isArray(data)) {
+      // if the payload is an update
+      this._sentCounter++
+      this.emit('updateSent', this, data, this._sentCounter, `${this.sb.id}/${this.name}`)
+    }
   }
 
   private getOutgoing = () => {
