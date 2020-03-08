@@ -20,16 +20,18 @@ export function filter(update: Update, sources: Sources) {
   return !sources || !sources[source] || sources[source] < ts
 }
 
+export function order(a: Update, b: Update) {
+  // sort by timestamps, then ids.
+  // there should never be a pair with equal timestamps
+  // and ids.
+  return (
+    a[UpdateItems.Timestamp] - b[UpdateItems.Timestamp] ||
+    (a[UpdateItems.SourceId] > b[UpdateItems.SourceId] ? 1 : -1)
+  )
+}
+
 export function sort(hist: Update[]) {
-  return hist.sort(function(a, b) {
-    // sort by timestamps, then ids.
-    // there should never be a pair with equal timestamps
-    // and ids.
-    return (
-      a[UpdateItems.Timestamp] - b[UpdateItems.Timestamp] ||
-      (a[UpdateItems.SourceId] > b[UpdateItems.SourceId] ? 1 : -1)
-    )
-  })
+  return hist.sort(order)
 }
 
 export function protoIsIllegal(s: EventEmitter) {

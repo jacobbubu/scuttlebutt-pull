@@ -16,7 +16,7 @@ import {
   StreamOptions,
   UpdateItems
 } from './interfaces'
-import { createId, filter, sort, isPromise } from './utils'
+import { createId, filter, order, sort, isPromise } from './utils'
 
 class Scuttlebutt extends EventEmitter {
   private _sign?: Sign = undefined
@@ -198,6 +198,7 @@ export default Scuttlebutt
 export { Scuttlebutt }
 export { createId }
 export { filter }
+export { order }
 export { sort }
 export { filter as updateIsRecent }
 export { timestamp }
