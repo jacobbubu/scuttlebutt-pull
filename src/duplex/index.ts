@@ -168,7 +168,9 @@ class Duplex extends EventEmitter {
       this.logger.debug(`"update" ignored by peerId: '${this.peerId}'`)
 
       // now we know that our peer has the latest knowledge of UpdateItems.SourceId at time "UpdateItems.Timestamp"
-      this.peerSources[UpdateItems.SourceId] = update[UpdateItems.Timestamp]
+      const ts = update[UpdateItems.Timestamp]
+      const source = update[UpdateItems.SourceId]
+      this.peerSources[source] = ts
       this.logger.debug('updated peerSources to', this.peerSources)
       return
     }
