@@ -140,7 +140,7 @@ class Duplex extends EventEmitter {
   }
 
   private getOutgoing = () => {
-    const outgoing: Outgoing = { id: this.sb.id, clock: this.sb.sources }
+    const outgoing: Outgoing = { id: this.sb.id, clock: { ...this.sb.sources } }
     if (this.sb.accept) {
       outgoing.accept = this.sb.accept
     }
@@ -171,6 +171,7 @@ class Duplex extends EventEmitter {
       const ts = update[UpdateItems.Timestamp]
       const source = update[UpdateItems.SourceId]
       this.peerSources[source] = ts
+
       this.logger.debug('updated peerSources to', this.peerSources)
       return
     }
