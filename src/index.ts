@@ -81,9 +81,6 @@ class Scuttlebutt extends EventEmitter {
       return false
     }
 
-    this.sources[sourceId] = ts
-    this.logger.debug('update our sources to', this.sources)
-
     const self = this
 
     function didVerification(verified: boolean) {
@@ -101,6 +98,9 @@ class Scuttlebutt extends EventEmitter {
       const r = self.applyUpdate(update)
       if (isPromise(r)) {
         return r.then(updated => {
+          self.sources[sourceId] = ts
+          self.logger.debug('update our sources to', self.sources)
+
           if (updated) self.emit('_update', update)
           self.logger.debug(
             'applied "update" and fired ⚡_update, total listeners:',
@@ -110,6 +110,9 @@ class Scuttlebutt extends EventEmitter {
         })
       } else {
         if (r) {
+          self.sources[sourceId] = ts
+          self.logger.debug('update our sources to', self.sources)
+
           self.emit('_update', update)
           self.logger.debug(
             'applied "update" and fired ⚡_update, total listeners:',
