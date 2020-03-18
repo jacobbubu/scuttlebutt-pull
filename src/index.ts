@@ -19,9 +19,9 @@ import {
 import { createId, filter, order, sort, isPromise } from './utils'
 
 class Scuttlebutt extends EventEmitter {
-  private _sign?: Sign = undefined
-  private _verify?: Verify = undefined
-  private _clones: number = 0
+  protected _sign?: Sign = undefined
+  protected _verify?: Verify = undefined
+  protected _clones: number = 0
 
   public streams = 0
   public sources: Sources = {}
