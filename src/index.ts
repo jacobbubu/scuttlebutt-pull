@@ -191,6 +191,7 @@ class Scuttlebutt extends EventEmitter {
     link(a, b)
     a.on('synced', () => {
       a.end()
+      A._clones -= 1
       A.emit('cloned', B, A._clones)
     })
     return B

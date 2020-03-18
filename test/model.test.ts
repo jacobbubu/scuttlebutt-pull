@@ -97,7 +97,7 @@ describe('model', () => {
     a.set(expected.key, expected.valueA)
     a.on('cloned', async (b, clones) => {
       expect(b.get('foo')).toBe(expected.valueA)
-      expect(clones).toBe(1)
+      expect(clones).toBe(0)
       b.set(expected.key, expected.valueB)
       await delay(10)
       expect(a.get('foo')).toBe(expected.valueA)
