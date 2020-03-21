@@ -20,20 +20,30 @@ function pullStringify(options: Record<string, any>) {
   let first = true
   let ended: boolean | Error = false
   return function<T>(read: pull.Source<T>) {
-    return function(end: boolean | Error | null, cb: Function) {
-      if (ended || end) return cb(ended || end)
+    return function readForSink(endFromSink: boolean | Error | null, cbFromSink: Function) {
+      if (endFromSink) {
+        // pass the end request from sink to source
+        read(true, function(endFromSource, data) {
+          // and then, give sink a callback that we have finished the stream
+          return cbFromSink(true)
+        })
+      }
+      // if the source has requested an end before
+      if (ended) return cbFromSink(ended)
 
-      read(null, function(end, data) {
-        if (!end) {
+      read(null, function(endFromSource, data) {
+        if (!endFromSource) {
           const f = first
           first = false
 
           const serialized = stringify(data, null, indent)
-          cb(null, (f ? open : prefix) + serialized + suffix)
+          cbFromSink(null, (f ? open : prefix) + serialized + suffix)
         } else {
-          ended = end
-          if (ended !== true) return cb(ended)
-          cb(null, first ? open + close : close)
+          ended = endFromSource
+          if (ended !== true) {
+            return cbFromSink(ended)
+          }
+          cbFromSink(null, first ? open + close : close)
         }
       })
     }
