@@ -27,6 +27,7 @@ function pullStringify(options: Record<string, any>) {
           // and then, give sink a callback that we have finished the stream
           return cbFromSink(true)
         })
+        return
       }
       // if the source has requested an end before
       if (ended) return cbFromSink(ended)
