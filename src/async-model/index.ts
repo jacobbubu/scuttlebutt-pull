@@ -53,10 +53,6 @@ class AsyncModel extends AsyncScuttlebutt {
 
   async applyUpdate(update: Update) {
     const key = update[UpdateItems.Data][ModelValueItems.Key]
-    if ('__proto__' === key) {
-      u.protoIsIllegal(this)
-      return false
-    }
 
     // ignore if we already have a more recent value
     const storedClock = await this.store.get(key)
@@ -65,7 +61,7 @@ class AsyncModel extends AsyncScuttlebutt {
       storedClock[UpdateItems.Timestamp] > update[UpdateItems.Timestamp]
     ) {
       this.emit('_remove', update)
-      return false
+      return true
     }
 
     // otherwise we remove the local one

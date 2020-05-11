@@ -52,17 +52,13 @@ class Model extends Scuttlebutt {
 
   applyUpdate(update: Update) {
     const key = update[UpdateItems.Data][ModelValueItems.Key]
-    if ('__proto__' === key) {
-      u.protoIsIllegal(this)
-      return false
-    }
 
     // ignore if we already have a more recent value
     // tslint:disable-next-line:strict-type-predicates
     if (typeof this.store[key] !== 'undefined') {
       if (this.store[key][UpdateItems.Timestamp] > update[UpdateItems.Timestamp]) {
         this.emit('_remove', update)
-        return false
+        return true
       }
     }
 
