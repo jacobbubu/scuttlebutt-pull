@@ -203,8 +203,12 @@ class Duplex extends EventEmitter {
       this._abort = abort
       // if there is already a cb waiting, abort it.
       if (this._cb) {
-        this.callback(abort)
+        const temp = this._cb
+        this._cb = undefined
+        temp(abort)
       }
+      this._cb = cb
+      return this.callback(abort)
     }
     if (this._isFirstRead) {
       this._isFirstRead = false
