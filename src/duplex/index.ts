@@ -39,7 +39,7 @@ interface Outgoing {
   accept?: any
 }
 
-class Duplex extends EventEmitter {
+class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   private _name: string
   private _source: Read | undefined
   private _sink: Sink | undefined
@@ -321,11 +321,11 @@ class Duplex extends EventEmitter {
       if (this._wrapper === 'raw') {
         this._sink = this.rawSink
       } else if (this._wrapper === 'json') {
-        this._sink = pull(jsonSerializer.parse(), this.rawSink as any) as any
+        this._sink = pull(jsonSerializer.parse(), this.rawSink as any) as pull.Sink<any>
       } else if ('string' === typeof this._wrapper) {
         throw new Error(`unsupported wrapper name(${this._wrapper})`)
       } else {
-        this._sink = pull(this._wrapper.parse(), this.rawSink as any) as any
+        this._sink = pull(this._wrapper.parse(), this.rawSink as any) as pull.Sink<any>
       }
     }
     return this._sink

@@ -11,7 +11,7 @@ const JsonParse = (str: string) => {
 
 const serialize = ldjson
 const parse = function() {
-  return pull(split('\n'), pull.filter(Truthy), pull.map(JsonParse))!
+  return pull(split('\n'), pull.filter(Truthy), pull.map(JsonParse))
 }
 
 export { serialize }
