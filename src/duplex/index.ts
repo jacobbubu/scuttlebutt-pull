@@ -67,7 +67,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     super()
 
     this._name = opts.name || 'stream'
-    this._wrapper = opts.wrapper || 'json'
+    this._wrapper = opts.wrapper || 'raw'
     this.logger = sb.logger.ns(this._name)
 
     this._writable = opts.writable !== false
