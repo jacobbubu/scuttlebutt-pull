@@ -1,16 +1,12 @@
 import { Sources, Update, UpdateItems } from './interfaces'
 import { EventEmitter } from 'events'
 import isPromise = require('is-promise')
+import ShortUniqueId from 'short-unique-id'
+
+const uid = new ShortUniqueId()
 
 export function createId() {
-  return [1, 1, 1]
-    .map(function() {
-      return Math.random()
-        .toString(16)
-        .substring(2)
-        .toUpperCase()
-    })
-    .join('')
+  return uid()
 }
 
 export function filter(update: Update, sources: Sources) {
