@@ -321,11 +321,11 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
       if (this._wrapper === 'raw') {
         this._sink = this.rawSink
       } else if (this._wrapper === 'json') {
-        this._sink = pull(jsonSerializer.parse(), this.rawSink as any) as pull.Sink<any>
+        this._sink = pull(jsonSerializer.parse(), this.rawSink)
       } else if ('string' === typeof this._wrapper) {
         throw new Error(`unsupported wrapper name(${this._wrapper})`)
       } else {
-        this._sink = pull(this._wrapper.parse(), this.rawSink as any) as pull.Sink<any>
+        this._sink = pull(this._wrapper.parse(), this.rawSink)
       }
     }
     return this._sink
