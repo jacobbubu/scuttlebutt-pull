@@ -10,8 +10,11 @@ export interface ScuttlebuttOptions {
   createId?(): SourceId
   sign?: boolean
   verify?: boolean
-  store?: AsyncModelStoreBase
   accept?: any
+}
+
+export interface AsyncModelOptions extends ScuttlebuttOptions {
+  store?: AsyncModelStoreBase
 }
 
 export interface StreamOptions {

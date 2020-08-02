@@ -3,7 +3,7 @@ import * as u from '../utils'
 import { MemoryAsyncModelStore as DefaultStore } from './memory-store'
 
 import {
-  ScuttlebuttOptions,
+  AsyncModelOptions,
   Sources,
   Update,
   UpdateItems,
@@ -15,7 +15,7 @@ import {
 class AsyncModel extends AsyncScuttlebutt {
   public store: AsyncModelStoreBase
 
-  constructor(opts?: ScuttlebuttOptions | string) {
+  constructor(opts?: AsyncModelOptions | string) {
     if (typeof opts === 'string') {
       opts = { id: opts }
       super(opts)
