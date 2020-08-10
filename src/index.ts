@@ -97,7 +97,7 @@ class Scuttlebutt extends EventEmitter {
       // emit '_update' event to notify every streams on this SB
       const r = self.applyUpdate(update)
       if (isPromise(r)) {
-        return r.then(updated => {
+        return (r as Promise<boolean>).then(updated => {
           self.sources[sourceId] = ts
           self.logger.debug('update our sources to', self.sources)
 

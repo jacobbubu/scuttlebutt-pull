@@ -1,6 +1,5 @@
 import { Sources, Update, UpdateItems } from './interfaces'
 import { EventEmitter } from 'events'
-import isPromise = require('is-promise')
 import ShortUniqueId from 'short-unique-id'
 
 const uid = new ShortUniqueId()
@@ -44,4 +43,10 @@ export const isConstructor = (fn: any): boolean => fn === 'constructor'
 export const isNil = (obj: any): obj is null | undefined => isUndefined(obj) || obj === null
 export const isEmpty = (array: any): boolean => !(array && array.length > 0)
 export const isSymbol = (fn: any): fn is symbol => typeof fn === 'symbol'
-export { isPromise }
+export function isPromise(obj: any) {
+  return (
+    !!obj &&
+    (typeof obj === 'object' || typeof obj === 'function') &&
+    typeof obj.then === 'function'
+  )
+}
