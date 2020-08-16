@@ -2,11 +2,10 @@ import split = require('@jacobbubu/pull-split')
 import { ldjson } from '../pull-stringify'
 import * as pull from 'pull-stream'
 
-const Truthy = () => true
+const Truthy = (str: string) => str.length > 0
 
 const JsonParse = (str: string) => {
   return JSON.parse(str)
-  // return str.length > 0 ? JSON.parse(str) : str
 }
 
 const serialize = ldjson
