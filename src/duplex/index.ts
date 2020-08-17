@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import * as pull from 'pull-stream'
+import * as pull from '@jacobbubu/pull-stream'
 import { Debug } from '@jacobbubu/debug'
 import i = require('iterate')
 import * as jsonSerializer from './json-serializer'

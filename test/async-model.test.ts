@@ -1,5 +1,4 @@
 import { AsyncModel, link } from '../src'
-import { delay } from './utils'
 
 describe('async-model', () => {
   const expected = {

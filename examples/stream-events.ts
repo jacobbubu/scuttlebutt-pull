@@ -1,4 +1,4 @@
-import { Model, link, Duplex, Update } from '../src'
+import { Model, link, Update } from '../src'
 
 const main = async () => {
   const a = new Model({ id: 'A' })

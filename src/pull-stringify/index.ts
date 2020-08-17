@@ -1,4 +1,4 @@
-import * as pull from 'pull-stream'
+import * as pull from '@jacobbubu/pull-stream'
 
 function defined(...args: any) {
   for (let i = 0; i < args.length; i++) {

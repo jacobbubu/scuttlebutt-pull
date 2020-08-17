@@ -1,5 +1,5 @@
 declare module '@jacobbubu/pull-split' {
-  import * as pull from 'pull-stream'
+  import * as pull from '@jacobbubu/pull-stream'
 
   // matcher, mapper, reverse, last
   function split<T>(
