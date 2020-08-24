@@ -1,4 +1,4 @@
-import * as pull from '@jacobbubu/pull-stream'
+import * as pull from 'pull-stream'
 import { AsyncModelStoreBase } from './async-model-store.interface'
 export type SourceId = string
 export type Timestamp = number

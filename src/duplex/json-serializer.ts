@@ -1,6 +1,6 @@
-import split = require('@jacobbubu/pull-split')
+import split from '@jacobbubu/pull-split'
 import { ldjson } from '../pull-stringify'
-import * as pull from '@jacobbubu/pull-stream'
+import * as pull from 'pull-stream'
 
 const Truthy = (str: string) => str.length > 0
 
