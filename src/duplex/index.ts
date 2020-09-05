@@ -386,7 +386,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
 
     const self = this
 
-    // won't send history/SYNC abd further update out if the stream is write-only
+    // won't send history/SYNC and further update out if the stream is write-only
     if (!this._readable) {
       return rest()
     }
