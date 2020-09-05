@@ -240,7 +240,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
         self.peerId || (update as Outgoing).id,
         update
       )
-      // Array means Update[]
+      // Array means Update
       if (Array.isArray(update)) {
         // counting the update that current stream received
         self._receivedCounter++
