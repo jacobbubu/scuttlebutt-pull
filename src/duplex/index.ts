@@ -335,6 +335,10 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this._writable = value
   }
 
+  get finished() {
+    return this._finished
+  }
+
   public push(data: unknown, toHead = false) {
     if (this._sourceEnded) return
     if (toHead) {

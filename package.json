@@ -38,7 +38,8 @@
     "example:stream-end": "tsnd --respawn examples/stream-end.ts",
     "example:readable-model": "tsnd --respawn examples/readable-model.ts",
     "example:stream-events": "tsnd --respawn examples/stream-events.ts",
-    "example:sync-to-file": "tsnd --respawn examples/sync-to-file.ts"
+    "example:sync-to-file": "tsnd --respawn examples/sync-to-file.ts",
+    "example:load-dumped-data": "tsnd --respawn examples/load-dumped-data.ts"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [
