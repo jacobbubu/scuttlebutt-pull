@@ -8,6 +8,7 @@ import { Scuttlebutt } from '../index'
 import { filter } from '../utils'
 import { AsyncScuttlebutt } from '../async-scuttlebutt'
 import { Sources, Update, StreamOptions, UpdateItems, Serializer } from '../interfaces'
+import { DumpDuplex, DumpDuplexOptions } from './dump-duplex'
 
 type Read = (abort: pull.Abort, cb: pull.SourceCallback<any>) => void
 type OnClose = (err?: pull.EndOrError) => void
@@ -150,7 +151,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     if (!isAccepted) {
       this.logger.debug(`"update" ignored by peerAccept: %o`, {
         update,
-        peerAccept: this.peerAccept
+        peerAccept: this.peerAccept,
       })
       return
     }
@@ -168,6 +169,10 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   private rawSource = (abort: pull.Abort, cb: pull.SourceCallback<any>) => {
+    if (this._sourceEnded) {
+      return cb(this._sourceEnded)
+    }
+
     this._cbs.push(cb)
 
     if (abort) {
@@ -342,9 +347,10 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
 
   private drain() {
     if (this._sourceEnded) return
+
     if (this._askAbort) {
       // call of all waiting callback functions
-      this._cbs.forEach(cb => {
+      this._cbs.forEach((cb) => {
         cb(this._askAbort)
       })
 
@@ -399,7 +405,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this._askAbort = abort || true
 
     if (this._rawSinkRead && !this._sinkEnded) {
-      this._rawSinkRead(this._askAbort, end => {
+      this._rawSinkRead(this._askAbort, (end) => {
         this._sinkEnded = end
         this.finish()
       })
@@ -430,7 +436,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     if (this.sb instanceof AsyncScuttlebutt) {
       await this.sb.lockForHistory(async () => {
         const history = await this.sb.history(this.peerSources, this.peerAccept)
-        i.each(history, function(update) {
+        i.each(history, function (update) {
           const u = [...update]
           u[UpdateItems.From] = self.sb.id
           self.push(u)
@@ -451,7 +457,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     } else {
       const history = this.sb.history(this.peerSources, this.peerAccept)
       const self = this
-      i.each(history, function(update) {
+      i.each(history, function (update) {
         const u = [...update]
         u[UpdateItems.From] = self.sb.id
         self.push(u)
@@ -491,3 +497,6 @@ export function link(a: pull.Duplex<any, any>, b: pull.Duplex<any, any>) {
 }
 
 export { Duplex }
+export function createDumpDuplex(dumpSink: pull.Sink<any>, opts: Partial<DumpDuplexOptions> = {}) {
+  return new DumpDuplex(dumpSink, opts)
+}
