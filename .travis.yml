@@ -13,8 +13,8 @@ notifications:
     - rong.shen@gmail.com
 
 node_js:
-  - "10"
-  - "8"
+  - "14"
+  - "12"
 
 script:
   - npm run test:prod && npm run build
