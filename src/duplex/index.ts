@@ -9,12 +9,8 @@ import { filter } from '../utils'
 import { AsyncScuttlebutt } from '../async-scuttlebutt'
 import { Sources, Update, StreamOptions, UpdateItems, Serializer } from '../interfaces'
 
-type Abort = Error | boolean | null
-type EndOrError = Error | boolean | null
-type SourceCallback = (end: EndOrError, data?: any) => unknown
-type Read = (abort: Abort, cb: SourceCallback) => unknown
-type Sink = (read: Read) => unknown
-type OnClose = (err?: EndOrError) => void
+type Read = (abort: pull.Abort, cb: pull.SourceCallback<any>) => void
+type OnClose = (err?: pull.EndOrError) => void
 
 function validate(update: Update) {
   /* tslint:disable */
@@ -42,22 +38,28 @@ interface Outgoing {
 class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   private _name: string
   private _source: Read | undefined
-  private _sink: Sink | undefined
+  private _sink: pull.Sink<any> | undefined
   private _wrapper: string | Serializer
   private _readable = true
   private _writable = true
-  private _ended: EndOrError = false
-  private _abort: Abort = false
   private _syncSent = false
   private _syncRecv = false
-  private _buffer: any[] = []
-  private _cb: SourceCallback | undefined
-  private _onclose: OnClose | undefined
+
+  private _onclose: OnClose
   private _isFirstRead = true
   private _sentCounter = 0 // update count that the stream has sent
   private _receivedCounter = 0 // update count that the stream has received
   private _tail: boolean
   private logger: Debug
+
+  private _rawSinkRead: pull.Source<any> | null = null
+  private _buffer: any[] = []
+  private _cbs: pull.SourceCallback<any>[] = []
+  private _askAbort: pull.EndOrError = false
+  private _askEnd: pull.EndOrError = false
+  private _sourceEnded: pull.EndOrError = false
+  private _sinkEnded: pull.EndOrError = false
+  private _finished: pull.EndOrError = false
 
   public peerSources: Sources = {}
   public peerAccept: any
@@ -82,64 +84,31 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this._tail = opts.tail !== false // default to tail = true
 
     sb.streams++
+    this.end = this.end.bind(this)
     sb.once('dispose', this.end)
 
     this.sb = sb
 
     this._onclose = () => {
       this.sb.removeListener('_update', this.onUpdate)
-      sb.removeListener('dispose', this.end)
-      this.sb.streams--
+      this.sb.streams -= 1
       this.sb.emit('unstream', this.sb.streams)
     }
   }
 
-  private drain = () => {
-    if (!this._cb) {
-      // there is no downstream waiting for callback
-      if (this._ended && this._onclose) {
-        // perform _onclose regardless of whether there is data in the cache
-        let c = this._onclose
-        this._onclose = undefined
-        c(this._ended)
-      }
-      return
-    }
+  private finish() {
+    if (this._finished) return
 
-    if (this._abort) {
-      // downstream is waiting for abort
-      this.callback(this._abort)
-    } else if (!this._buffer.length && this._ended) {
-      // we'd like to end and there is no left items to be sent
-      this.callback(this._ended)
-    } else if (this._buffer.length) {
-      const payload = this._buffer.shift()
-      this.callback(null, payload)
+    const sinkEnded = !this._rawSinkRead || this._sinkEnded
+
+    if (this._sourceEnded && sinkEnded) {
+      this._sinkEnded = sinkEnded
+      this._finished = true
+      this._onclose(this._sourceEnded || this._sinkEnded)
     }
   }
 
-  private callback = (err: EndOrError, data?: any) => {
-    let cb = this._cb
-    if (err && this._onclose) {
-      let c = this._onclose
-      this._onclose = undefined
-      c(err === true ? null : err)
-    }
-    this._cb = undefined
-
-    if (cb) {
-      cb(err, data)
-
-      // fire this event when the payload has been read by downstream
-      if (!err && Array.isArray(data)) {
-        // if the payload is an update
-        this._sentCounter++
-        this.emit('updateSent', this, data, this._sentCounter, `${this.sb.id}/${this.name}`)
-      }
-    }
-  }
-
-  private getOutgoing = () => {
+  private getOutgoing() {
     const outgoing: Outgoing = { id: this.sb.id, clock: { ...this.sb.sources } }
     if (this.sb.accept) {
       outgoing.accept = this.sb.accept
@@ -198,40 +167,43 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this.logger.debug('updated peerSources to', this.peerSources)
   }
 
-  private rawSource = (abort: Abort, cb: SourceCallback) => {
+  private rawSource = (abort: pull.Abort, cb: pull.SourceCallback<any>) => {
+    this._cbs.push(cb)
+
     if (abort) {
-      this._abort = abort
-      // if there is already a cb waiting, abort it.
-      if (this._cb) {
-        const temp = this._cb
-        this._cb = undefined
-        temp(abort)
-      }
-      this._cb = cb
-      return this.callback(abort)
-    }
-    if (this._isFirstRead) {
+      this._askAbort = abort
+      this._isFirstRead = false
+    } else if (this._isFirstRead) {
       this._isFirstRead = false
       const outgoing = this.getOutgoing()
       this.push(outgoing, true)
       this.logger.log(`sent "outgoing": %o`, outgoing)
     }
-    this._cb = cb
     this.drain()
   }
 
   private rawSink = (read: Read) => {
+    this._rawSinkRead = read
     const self = this
-    read(this._abort || this._ended, function next(end, update: Update | object | string) {
+    if (this._sinkEnded) return
+
+    this._rawSinkRead(this._askAbort || this._askEnd, function next(
+      end,
+      update: Update | object | string
+    ) {
       if (true === end) {
         self.logger.debug('sink ended by peer(%s), %o', self.peerId, end)
-        self.end(end)
+        self._sinkEnded = end
+        self._askAbort ? self.abort() : self.end()
+        self.finish()
         return
       }
 
       if (end) {
         self.logger.error('sink reading errors, %o', end)
-        self.end(end)
+        self._sinkEnded = end
+        self._askAbort ? self.abort() : self.end()
+        self.finish()
         return
       }
 
@@ -240,6 +212,13 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
         self.peerId || (update as Outgoing).id,
         update
       )
+
+      const readAgain = () => {
+        if (!self._sinkEnded) {
+          self._rawSinkRead!(self._askAbort || self._askEnd, next)
+        }
+      }
+
       // Array means Update
       if (Array.isArray(update)) {
         // counting the update that current stream received
@@ -258,7 +237,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
           if (self.sb instanceof AsyncScuttlebutt) {
             // tslint:disable:no-floating-promises
             self.sb._update(update).then(() => {
-              read(self._abort || self._ended, next)
+              readAgain()
             })
             // for async sb._update, we should avoid re-calling read in the sync branch
             return
@@ -286,7 +265,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
           // it's a scuttlebutt digest(vector clocks) when clock is an object.
           // tslint:disable:no-floating-promises
           self.start(update).then(() => {
-            read(self._abort || self._ended, next)
+            readAgain()
           })
           // for async sb.localUpdate, we should avoid re-calling read in the sync branch
           return
@@ -297,7 +276,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
           )
         }
       }
-      read(self._abort || self._ended, next)
+      readAgain()
     })
   }
 
@@ -351,29 +330,85 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this._writable = value
   }
 
-  public push = (data: unknown, toHead = false) => {
-    if (this._ended) return
-    // if sink already waiting,
-    // we can call back directly.
-    if (this._cb) {
-      this.callback(this._abort, data)
-      return
-    }
-    // otherwise buffer data
+  public push(data: unknown, toHead = false) {
+    if (this._sourceEnded) return
     if (toHead) {
       this._buffer.unshift(data)
     } else {
       this._buffer.push(data)
     }
-  }
-
-  public end = (end?: EndOrError) => {
-    this._ended = this._ended || end || true
-    // attempt to drain
     this.drain()
   }
 
-  public start = async (data: Object) => {
+  private drain() {
+    if (this._sourceEnded) return
+    if (this._askAbort) {
+      // call of all waiting callback functions
+      this._cbs.forEach(cb => {
+        cb(this._askAbort)
+      })
+
+      this._buffer = []
+      this._cbs = []
+
+      this._sourceEnded = this._askAbort
+      this.finish()
+      return
+    }
+
+    while (this._buffer.length > 0) {
+      const cb = this._cbs.shift()
+      if (cb) {
+        const data = this._buffer.shift()
+        cb(null, data)
+        // fire this event when the payload has been read by downstream
+        if (Array.isArray(data)) {
+          // if the payload is an update
+          this._sentCounter++
+          this.emit('updateSent', this, data, this._sentCounter, `${this.sb.id}/${this.name}`)
+        }
+      } else {
+        break
+      }
+    }
+
+    if (this._askEnd) {
+      if (this._buffer.length > 0) return
+
+      // call of all waiting callback functions
+      while (this._cbs.length > 0) {
+        this._cbs.shift()!(this._askEnd)
+      }
+
+      this._sourceEnded = this._askEnd
+
+      this.finish()
+    }
+  }
+
+  public end(end?: pull.EndOrError) {
+    if (this._askEnd) return
+
+    this._askEnd = end || true
+    this.drain()
+  }
+
+  public abort(abort?: pull.EndOrError) {
+    if (this._askAbort) return
+
+    this._askAbort = abort || true
+
+    if (this._rawSinkRead && !this._sinkEnded) {
+      this._rawSinkRead(this._askAbort, end => {
+        this._sinkEnded = end
+        this.finish()
+      })
+    }
+
+    this.drain()
+  }
+
+  public async start(data: Object) {
     this.logger.log('start with data: %o', data)
     const incoming = data as Outgoing
     if (!incoming || !incoming.clock) {
@@ -451,9 +486,8 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 }
 
-export function link(a: any, b: any) {
-  pull(a.source, b.sink)
-  pull(b.source, a.sink)
+export function link(a: pull.Duplex<any, any>, b: pull.Duplex<any, any>) {
+  pull(a, b, a)
 }
 
 export { Duplex }

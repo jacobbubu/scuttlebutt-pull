@@ -37,7 +37,8 @@
     "example:reliable-event": "tsnd --respawn examples/reliable-event.ts",
     "example:stream-end": "tsnd --respawn examples/stream-end.ts",
     "example:readable-model": "tsnd --respawn examples/readable-model.ts",
-    "example:stream-events": "tsnd --respawn examples/stream-events.ts"
+    "example:stream-events": "tsnd --respawn examples/stream-events.ts",
+    "example:sync-to-file": "tsnd --respawn examples/sync-to-file.ts"
   },
   "lint-staged": {
     "{src,test}/**/*.ts": [
