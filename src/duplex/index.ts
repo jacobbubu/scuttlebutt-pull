@@ -350,22 +350,6 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   private drain() {
-    if (this._sourceEnded) return
-
-    if (this._askAbort) {
-      // call of all waiting callback functions
-      this._cbs.forEach((cb) => {
-        cb(this._askAbort)
-      })
-
-      this._buffer = []
-      this._cbs = []
-
-      this._sourceEnded = this._askAbort
-      this.finish()
-      return
-    }
-
     while (this._buffer.length > 0) {
       const cb = this._cbs.shift()
       if (cb) {
@@ -382,16 +366,28 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
       }
     }
 
+    if (this._askAbort) {
+      // call of all waiting callback functions
+      this._cbs.forEach((cb) => {
+        cb(this._askAbort)
+      })
+      this._cbs = []
+      this._buffer = []
+
+      this._sourceEnded = this._askAbort
+      this.finish()
+      return
+    }
+
     if (this._askEnd) {
       if (this._buffer.length > 0) return
 
       // call of all waiting callback functions
-      while (this._cbs.length > 0) {
-        this._cbs.shift()!(this._askEnd)
-      }
-
+      this._cbs.forEach((cb) => {
+        cb(this._askEnd)
+      })
+      this._cbs = []
       this._sourceEnded = this._askEnd
-
       this.finish()
     }
   }
