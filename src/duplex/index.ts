@@ -199,7 +199,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
       if (true === end) {
         self.logger.debug('sink ended by peer(%s), %o', self.peerId, end)
         self._sinkEnded = end
-        self._askAbort ? self.abort() : self.end()
+        if (!(self._askAbort || self._askEnd)) self.end()
         self.finish()
         return
       }
@@ -207,7 +207,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
       if (end) {
         self.logger.error('sink reading errors, %o', end)
         self._sinkEnded = end
-        self._askAbort ? self.abort() : self.end()
+        if (!(self._askAbort || self._askEnd)) self.end()
         self.finish()
         return
       }
