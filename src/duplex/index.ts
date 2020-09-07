@@ -340,7 +340,8 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   public push(data: unknown, toHead = false) {
-    if (this._sourceEnded) return
+    if (this._askAbort || this._askEnd || this._sourceEnded) return
+
     if (toHead) {
       this._buffer.unshift(data)
     } else {
@@ -393,14 +394,14 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   public end(end?: pull.EndOrError) {
-    if (this._askEnd) return
+    if (this._askAbort || this._askEnd || this._sourceEnded) return
 
     this._askEnd = end || true
     this.drain()
   }
 
   public abort(abort?: pull.EndOrError) {
-    if (this._askAbort) return
+    if (this._askAbort || this._sourceEnded) return
 
     this._askAbort = abort || true
 
