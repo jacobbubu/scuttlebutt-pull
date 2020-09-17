@@ -403,7 +403,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   public abort(abort?: pull.EndOrError) {
-    if (this._askAbort) return
+    if (this._askAbort || this._finished) return
 
     this._askAbort = abort || true
 
