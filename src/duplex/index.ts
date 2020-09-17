@@ -192,7 +192,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     const self = this
     if (this._sinkEnded) return
 
-    this._rawSinkRead(this._askAbort || this._askEnd, function next(
+    this._rawSinkRead(this._askAbort || this._askEnd || this._sourceEnded, function next(
       end,
       update: Update | object | string
     ) {
@@ -220,7 +220,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
 
       const readAgain = () => {
         if (!self._sinkEnded) {
-          self._rawSinkRead!(self._askAbort || self._askEnd, next)
+          self._rawSinkRead!(self._askAbort || self._askEnd || self._sourceEnded, next)
         }
       }
 
@@ -351,6 +351,8 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   private drain() {
+    if (this._sourceEnded) return
+
     if (this._askAbort) {
       // call of all waiting callback functions
       this._cbs.forEach((cb) => {
@@ -401,7 +403,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   public abort(abort?: pull.EndOrError) {
-    if (this._askAbort || this._sourceEnded) return
+    if (this._askAbort) return
 
     this._askAbort = abort || true
 
