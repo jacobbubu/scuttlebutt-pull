@@ -31,11 +31,11 @@ describe('reliable-event', () => {
     B.on('a', bFired)
 
     const data = {
-      A: ['aardvark', 'antelope', 'anteater'],
-      B: ['armadillo', 'alligator', 'amobea']
+      A: ['a1', 'a2', 'a3'],
+      B: ['b1', 'b2', 'b3'],
     }
-    data.A.forEach(v => A.push('a', v))
-    data.B.forEach(v => B.push('a', v))
+    data.A.forEach((v) => A.push('a', v))
+    data.B.forEach((v) => B.push('a', v))
 
     await delay(200)
 
@@ -43,7 +43,7 @@ describe('reliable-event', () => {
     data.A.forEach((v, i) => expect(aFired).toHaveBeenNthCalledWith(i + 1, v))
 
     expect(bFired).toHaveBeenCalledTimes(data.A.concat(data.B).length)
-    data.B.forEach((v, i) => expect(bFired).toHaveBeenNthCalledWith(i + 1, v))
+    data.B.forEach((v, i) => expect(bFired).toHaveBeenNthCalledWith(data.A.length + i + 1, v))
   })
 
   it('isAccepted', async () => {

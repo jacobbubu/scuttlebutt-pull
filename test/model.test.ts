@@ -7,10 +7,10 @@ describe('model', () => {
   const expected = {
     key: 'foo',
     valueA: 'changed by A',
-    valueB: 'changed by B'
+    valueB: 'changed by B',
   }
 
-  it('local change', done => {
+  it('local change', (done) => {
     const a = new Model('A')
 
     let c = 2
@@ -20,7 +20,7 @@ describe('model', () => {
       if (!--c) done()
     })
 
-    a.on(`changed:${expected.key}`, value => {
+    a.on(`changed:${expected.key}`, (value) => {
       expect(value).toBe(expected.valueA)
       if (!--c) done()
     })
@@ -28,7 +28,7 @@ describe('model', () => {
     a.set(expected.key, expected.valueA)
   })
 
-  it('change before sync', done => {
+  it('change before sync', (done) => {
     const a = new Model('A')
     const b = new Model('B')
 
@@ -45,7 +45,7 @@ describe('model', () => {
     link(s1, s2)
   })
 
-  it('change after sync', done => {
+  it('change after sync', (done) => {
     const a = new Model('A')
     const b = new Model('B')
 
@@ -63,7 +63,7 @@ describe('model', () => {
     a.set(expected.key, expected.valueA)
   })
 
-  it('change in two-ways', done => {
+  it('change in two-ways', (done) => {
     const a = new Model('A')
     const b = new Model('B')
 
@@ -92,7 +92,7 @@ describe('model', () => {
     link(s1, s2)
   })
 
-  it('clone', done => {
+  it('clone', (done) => {
     const a = new Model('A')
     a.set(expected.key, expected.valueA)
     a.on('cloned', async (b, clones) => {

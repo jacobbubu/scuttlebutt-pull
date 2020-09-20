@@ -9,9 +9,9 @@ import { filter } from '../utils'
 import { AsyncScuttlebutt } from '../async-scuttlebutt'
 import { Sources, Update, StreamOptions, UpdateItems, Serializer } from '../interfaces'
 import { DumpDuplex, DumpDuplexOptions } from './dump-duplex'
+import { PullDuplex } from './pull-duplex'
 
 type Read = (abort: pull.Abort, cb: pull.SourceCallback<any>) => void
-type OnClose = (err?: pull.EndOrError) => void
 
 function validate(update: Update) {
   /* tslint:disable */
@@ -46,25 +46,17 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   private _syncSent = false
   private _syncRecv = false
 
-  private _onclose: OnClose
   private _isFirstRead = true
   private _sentCounter = 0 // update count that the stream has sent
   private _receivedCounter = 0 // update count that the stream has received
   private _tail: boolean
   private logger: Debug
 
-  private _rawSinkRead: pull.Source<any> | null = null
-  private _buffer: any[] = []
-  private _cbs: pull.SourceCallback<any>[] = []
-  private _askAbort: pull.EndOrError = false
-  private _askEnd: pull.EndOrError = false
-  private _sourceEnded: pull.EndOrError = false
-  private _sinkEnded: pull.EndOrError = false
-  private _finished: pull.EndOrError = false
-
   public peerSources: Sources = {}
   public peerAccept: any
   public peerId = ''
+
+  private _innerDuplex: PullDuplex<any, any>
 
   constructor(readonly sb: Scuttlebutt | AsyncScuttlebutt, readonly opts: StreamOptions) {
     super()
@@ -88,24 +80,91 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this.end = this.end.bind(this)
     sb.once('dispose', this.end)
 
-    this.sb = sb
+    this._innerDuplex = new PullDuplex({
+      onReceived: this.onReceived.bind(this),
+      onRead: this.onRead.bind(this),
+      onFinished: () => {
+        this.sb.removeListener('_update', this.onUpdate)
+        this.sb.streams -= 1
+        this.sb.emit('unstream', this.sb.streams)
+      },
+      onSent: (data) => {
+        if (Array.isArray(data)) {
+          // if the payload is an update
+          this._sentCounter++
+          this.emit('updateSent', this, data, this._sentCounter, `${this.sb.id}/${this.name}`)
+        }
+      },
+    })
 
-    this._onclose = () => {
-      this.sb.removeListener('_update', this.onUpdate)
-      this.sb.streams -= 1
-      this.sb.emit('unstream', this.sb.streams)
-    }
+    this.sb = sb
   }
 
-  private finish() {
-    if (this._finished) return
+  private onReceived(update: any, done: () => void) {
+    if (Array.isArray(update)) {
+      update = update as Update
+      // counting the update that current stream received
+      this._receivedCounter++
+      this.emit('updateReceived', this, update, this._receivedCounter, `${this.sb.id}/${this.name}`)
 
-    const sinkEnded = !this._rawSinkRead || this._sinkEnded
+      if (!this._writable) return done()
 
-    if (this._sourceEnded && sinkEnded) {
-      this._sinkEnded = sinkEnded
-      this._finished = true
-      this._onclose(this._sourceEnded || this._sinkEnded)
+      if (validate(update)) {
+        if (this.sb instanceof AsyncScuttlebutt) {
+          // tslint:disable:no-floating-promises
+          this.sb._update(update).then(() => {
+            return done()
+          })
+          // for async sb._update, we should avoid re-calling read in the sync branch
+          return
+        } else {
+          this.sb._update(update)
+        }
+      } // tslint:disable-next-line:strict-type-predicates
+    } else if ('string' === typeof update) {
+      const cmd = update
+      if (cmd === 'SYNC') {
+        if (this._writable) {
+          this.logger.log('SYNC received')
+          this._syncRecv = true
+          this.emit('syncReceived')
+
+          if (this._syncSent) {
+            this.logger.log('emit synced')
+            this.emit('synced')
+          }
+        } else {
+          this.logger.log(`ignore peer's(${this.peerId}) SYNC due to our non-writable setting`)
+        }
+      }
+    } else {
+      if (this._readable) {
+        // it's a scuttlebutt digest(vector clocks) when clock is an object.
+        if (this.sb instanceof AsyncScuttlebutt) {
+          // tslint:disable:no-floating-promises
+          this.start(update).then(() => {
+            return done()
+          })
+          return
+        } else {
+          this.start(update)
+        }
+      } else {
+        this.peerId = (update as Outgoing).id
+        this.logger.log(
+          `ignore peer's(${this.peerId}) outgoing data due to our non-readable setting`
+        )
+      }
+    }
+    return done()
+  }
+
+  private onRead() {
+    if (this._isFirstRead) {
+      this._isFirstRead = false
+      const outgoing = this.getOutgoing()
+      this.push(outgoing, true)
+      this.logger.log(`sent "outgoing": %o`, outgoing)
     }
   }
 
@@ -168,148 +227,20 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this.logger.debug('updated peerSources to', this.peerSources)
   }
 
-  private rawSource = (abort: pull.Abort, cb: pull.SourceCallback<any>) => {
-    if (this._sourceEnded) {
-      return cb(this._sourceEnded)
-    }
-
-    this._cbs.push(cb)
-
-    if (abort) {
-      this._askAbort = abort
-      this._isFirstRead = false
-    } else if (this._isFirstRead) {
-      this._isFirstRead = false
-      const outgoing = this.getOutgoing()
-      this.push(outgoing, true)
-      this.logger.log(`sent "outgoing": %o`, outgoing)
-    }
-    this.drain()
-  }
-
-  private rawSink = (read: Read) => {
-    this._rawSinkRead = read
-    const self = this
-    if (this._sinkEnded) return
-
-    this._rawSinkRead(this._askAbort || this._askEnd || this._sourceEnded, function next(
-      end,
-      update: Update | object | string
-    ) {
-      if (true === end) {
-        self.logger.debug('sink ended by peer(%s), %o', self.peerId, end)
-        self._sinkEnded = end
-        if (!(self._askAbort || self._askEnd)) self.end()
-        self.finish()
-        return
-      }
-
-      if (end) {
-        self.logger.error('sink reading errors, %o', end)
-        self._sinkEnded = end
-        if (!(self._askAbort || self._askEnd)) self.end()
-        self.finish()
-        return
-      }
-
-      self.logger.debug(
-        'sink reads data from peer(%s): %o',
-        self.peerId || (update as Outgoing).id,
-        update
-      )
-
-      const readAgain = () => {
-        if (!self._sinkEnded) {
-          self._rawSinkRead!(self._askAbort || self._askEnd || self._sourceEnded, next)
-        }
-      }
-
-      // Array means Update
-      if (Array.isArray(update)) {
-        // counting the update that current stream received
-        self._receivedCounter++
-        self.emit(
-          'updateReceived',
-          self,
-          update,
-          self._receivedCounter,
-          `${self.sb.id}/${self.name}`
-        )
-
-        if (!self._writable) return
-
-        if (validate(update)) {
-          if (self.sb instanceof AsyncScuttlebutt) {
-            // tslint:disable:no-floating-promises
-            self.sb._update(update).then(() => {
-              readAgain()
-            })
-            // for async sb._update, we should avoid re-calling read in the sync branch
-            return
-          } else {
-            self.sb._update(update)
-          }
-        } // tslint:disable-next-line:strict-type-predicates
-      } else if ('string' === typeof update) {
-        const cmd = update
-        if (cmd === 'SYNC') {
-          if (self._writable) {
-            self.logger.log('SYNC received')
-            self._syncRecv = true
-            self.emit('syncReceived')
-            if (self._syncSent) {
-              self.logger.log('emit synced')
-              self.emit('synced')
-            }
-          } else {
-            self.logger.log(`ignore peer's(${self.peerId}) SYNC due to our non-writable setting`)
-          }
-        }
-      } else {
-        if (self._readable) {
-          // it's a scuttlebutt digest(vector clocks) when clock is an object.
-          // tslint:disable:no-floating-promises
-          self.start(update).then(() => {
-            readAgain()
-          })
-          // for async sb.localUpdate, we should avoid re-calling read in the sync branch
-          return
-        } else {
-          self.peerId = (update as Outgoing).id
-          self.logger.log(
-            `ignore peer's(${self.peerId}) outgoing data due to our non-readable setting`
-          )
-        }
-      }
-      readAgain()
-    })
-  }
-
   get source() {
-    if (!this._source) {
-      if (this._wrapper === 'raw') {
-        this._source = this.rawSource
-      } else if (this._wrapper === 'json') {
-        this._source = pull(this.rawSource as any, jsonSerializer.serialize())
-      } else if ('string' === typeof this._wrapper) {
-        throw new Error(`unsupported wrapper name(${this._wrapper})`)
-      } else {
-        this._source = pull(this.rawSource as any, this._wrapper.serialize())
-      }
-    }
-    return this._source
+    return this._innerDuplex.source
   }
 
   get sink() {
     if (!this._sink) {
       if (this._wrapper === 'raw') {
-        this._sink = this.rawSink
+        this._sink = this._innerDuplex.sink
       } else if (this._wrapper === 'json') {
-        this._sink = pull(jsonSerializer.parse(), this.rawSink)
+        this._sink = pull(jsonSerializer.parse(), this._innerDuplex.sink)
       } else if ('string' === typeof this._wrapper) {
         throw new Error(`unsupported wrapper name(${this._wrapper})`)
       } else {
-        this._sink = pull(this._wrapper.parse(), this.rawSink)
+        this._sink = pull(this._wrapper.parse(), this._innerDuplex.sink)
       }
     }
     return this._sink
@@ -335,86 +266,23 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this._writable = value
   }
 
-  get finished() {
-    return this._finished
-  }
-
   public push(data: unknown, toHead = false) {
-    if (this._askAbort || this._askEnd || this._sourceEnded) return
+    if (!this._innerDuplex.sourceState.normal) return
 
     if (toHead) {
-      this._buffer.unshift(data)
+      this._innerDuplex.buffer.unshift(data)
     } else {
-      this._buffer.push(data)
+      this._innerDuplex.buffer.push(data)
     }
-    this.drain()
-  }
-
-  private drain() {
-    if (this._sourceEnded) return
-
-    if (this._askAbort) {
-      // call of all waiting callback functions
-      this._cbs.forEach((cb) => {
-        cb(this._askAbort)
-      })
-      this._cbs = []
-      this._buffer = []
-
-      this._sourceEnded = this._askAbort
-      this.finish()
-      return
-    }
-
-    while (this._buffer.length > 0) {
-      const cb = this._cbs.shift()
-      if (cb) {
-        const data = this._buffer.shift()
-        cb(null, data)
-        // fire this event when the payload has been read by downstream
-        if (Array.isArray(data)) {
-          // if the payload is an update
-          this._sentCounter++
-          this.emit('updateSent', this, data, this._sentCounter, `${this.sb.id}/${this.name}`)
-        }
-      } else {
-        break
-      }
-    }
-
-    if (this._askEnd) {
-      if (this._buffer.length > 0) return
-
-      // call of all waiting callback functions
-      this._cbs.forEach((cb) => {
-        cb(this._askEnd)
-      })
-      this._cbs = []
-      this._sourceEnded = this._askEnd
-      this.finish()
-    }
+    this._innerDuplex.sourceDrain()
   }
 
   public end(end?: pull.EndOrError) {
-    if (this._askAbort || this._askEnd || this._sourceEnded) return
-
-    this._askEnd = end || true
-    this.drain()
+    this._innerDuplex.end(end)
   }
 
   public abort(abort?: pull.EndOrError) {
-    if (this._askAbort) return
-
-    this._askAbort = abort || true
-
-    if (this._rawSinkRead && !this._sinkEnded) {
-      this._rawSinkRead(this._askAbort, (end) => {
-        this._sinkEnded = end
-        this.finish()
-      })
-    }
-
-    this.drain()
+    this._innerDuplex.abort(abort)
   }
 
   public async start(data: Object) {

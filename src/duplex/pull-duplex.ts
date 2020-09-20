@@ -1,7 +1,7 @@
 import * as pull from 'pull-stream'
 import { EventEmitter } from 'events'
-import { SourceState, OnEnd as OnSourceEnd } from './source-state'
-import { SinkState, OnEnd as OnSinkEnd } from './sink-state'
+import { SourceState } from './source-state'
+import { SinkState } from './sink-state'
 
 export interface DuplexOptions<In, Out> {
   allowHalfOpen: boolean

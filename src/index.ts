@@ -14,7 +14,7 @@ import {
   Verify,
   Sign,
   StreamOptions,
-  UpdateItems
+  UpdateItems,
 } from './interfaces'
 import { createId, filter, order, sort, isPromise } from './utils'
 
@@ -97,7 +97,7 @@ class Scuttlebutt extends EventEmitter {
       // emit '_update' event to notify every streams on this SB
       const r = self.applyUpdate(update)
       if (isPromise(r)) {
-        return (r as Promise<boolean>).then(updated => {
+        return (r as Promise<boolean>).then((updated) => {
           self.sources[sourceId] = ts
           self.logger.debug('update our sources to', self.sources)
 
@@ -188,12 +188,12 @@ class Scuttlebutt extends EventEmitter {
 
     const a = A.createStream({ wrapper: 'raw' })
     const b = B.createStream({ wrapper: 'raw' })
-    link(a, b)
     a.on('synced', () => {
       a.end()
       A._clones -= 1
       A.emit('cloned', B, A._clones)
     })
+    link(a, b)
     return B
   }
 }
