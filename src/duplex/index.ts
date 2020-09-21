@@ -9,7 +9,7 @@ import { filter } from '../utils'
 import { AsyncScuttlebutt } from '../async-scuttlebutt'
 import { Sources, Update, StreamOptions, UpdateItems, Serializer } from '../interfaces'
 import { DumpDuplex, DumpDuplexOptions } from './dump-duplex'
-import { PullDuplex } from './pull-duplex'
+import { PushableDuplex, OnReceivedCallback, OnReadCallback } from '@jacobbubu/pull-pushable-duplex'
 
 function validate(update: Update) {
   /* tslint:disable */
@@ -53,7 +53,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   public peerAccept: any
   public peerId = ''
 
-  private _innerDuplex: PullDuplex<any, any>
+  private _innerDuplex: PushableDuplex<any, any>
 
   constructor(readonly sb: Scuttlebutt | AsyncScuttlebutt, readonly opts: StreamOptions) {
     super()
@@ -77,7 +77,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this.end = this.end.bind(this)
     sb.once('dispose', this.end)
 
-    this._innerDuplex = new PullDuplex({
+    this._innerDuplex = new PushableDuplex({
       onReceived: this.onReceived.bind(this),
       onRead: this.onRead.bind(this),
       onFinished: () => {
@@ -97,7 +97,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     this.sb = sb
   }
 
-  private onReceived(update: any, done: () => void) {
+  private onReceived(update: any, done: OnReceivedCallback) {
     if (Array.isArray(update)) {
       update = update as Update
       // counting the update that current stream received
@@ -156,13 +156,14 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     return done()
   }
 
-  private onRead() {
+  private onRead(cb: OnReadCallback<any>) {
     if (this._isFirstRead) {
       this._isFirstRead = false
       const outgoing = this.getOutgoing()
       this.push(outgoing, true)
       this.logger.log(`sent "outgoing": %o`, outgoing)
     }
+    cb()
   }
 
   private getOutgoing() {
@@ -264,14 +265,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   public push(data: unknown, toHead = false) {
-    if (!this._innerDuplex.sourceState.normal) return
-
-    if (toHead) {
-      this._innerDuplex.buffer.unshift(data)
-    } else {
-      this._innerDuplex.buffer.push(data)
-    }
-    this._innerDuplex.sourceDrain()
+    this._innerDuplex.push(data, toHead)
   }
 
   public end(end?: pull.EndOrError) {
