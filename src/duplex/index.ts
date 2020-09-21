@@ -11,8 +11,6 @@ import { Sources, Update, StreamOptions, UpdateItems, Serializer } from '../inte
 import { DumpDuplex, DumpDuplexOptions } from './dump-duplex'
 import { PullDuplex } from './pull-duplex'
 
-type Read = (abort: pull.Abort, cb: pull.SourceCallback<any>) => void
-
 function validate(update: Update) {
   /* tslint:disable */
   if (
@@ -38,7 +36,6 @@ interface Outgoing {
 
 class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   private _name: string
-  private _source: Read | undefined
   private _sink: pull.Sink<any> | undefined
   private _wrapper: string | Serializer
   private _readable = true
