@@ -92,6 +92,23 @@ describe('model', () => {
     link(s1, s2)
   })
 
+  it('toJSON', (done) => {
+    const a = new Model('A')
+    const b = new Model('B')
+
+    const s1 = a.createStream({ name: 'a->b' })
+    const s2 = b.createStream({ name: 'b->a' })
+
+    a.set(expected.key, expected.valueA)
+
+    s2.on('synced', () => {
+      expect(b.toJSON()).toEqual({ [expected.key]: expected.valueA })
+      done()
+    })
+
+    link(s1, s2)
+  })
+
   it('clone', (done) => {
     const a = new Model('A')
     a.set(expected.key, expected.valueA)

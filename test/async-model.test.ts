@@ -4,10 +4,10 @@ describe('async-model', () => {
   const expected = {
     key: 'foo',
     valueA: 'changed by A',
-    valueB: 'changed by B'
+    valueB: 'changed by B',
   }
 
-  it('local change', done => {
+  it('local change', (done) => {
     const a = new AsyncModel('A')
 
     let c = 2
@@ -17,7 +17,7 @@ describe('async-model', () => {
       if (!--c) done()
     })
 
-    a.on(`changed:${expected.key}`, value => {
+    a.on(`changed:${expected.key}`, (value) => {
       expect(value).toBe(expected.valueA)
       if (!--c) done()
     })
@@ -26,7 +26,7 @@ describe('async-model', () => {
     a.set(expected.key, expected.valueA)
   })
 
-  it('change in two-ways', done => {
+  it('change in two-ways', (done) => {
     const a = new AsyncModel('A')
     const b = new AsyncModel('B')
 
@@ -57,7 +57,24 @@ describe('async-model', () => {
     link(s1, s2)
   })
 
-  it('clone', done => {
+  it('toJSON', async (done) => {
+    const a = new AsyncModel('A')
+    const b = new AsyncModel('B')
+
+    const s1 = a.createStream({ name: 'a->b' })
+    const s2 = b.createStream({ name: 'b->a' })
+
+    await a.set(expected.key, expected.valueA)
+
+    s2.on('synced', async () => {
+      expect(await b.toJSON()).toEqual({ [expected.key]: expected.valueA })
+      done()
+    })
+
+    link(s1, s2)
+  })
+
+  it('clone', (done) => {
     const a = new AsyncModel('A')
     // tslint:disable-next-line:no-floating-promises
     a.set(expected.key, expected.valueA)

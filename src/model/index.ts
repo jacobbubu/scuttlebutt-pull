@@ -110,7 +110,8 @@ class Model extends Scuttlebutt {
 
   toJSON() {
     const o: Record<string, any> = {}
-    this.store.forEach((v, k) => {
+    this.store.forEach((update, k) => {
+      const v = update[UpdateItems.Data][ModelValueItems.Value]
       if (!u.isNil(v)) {
         o[k] = v
       }
