@@ -1,4 +1,3 @@
-const { each } = require('iterate')
 import Scuttlebutt from '..'
 import * as u from '../utils'
 
@@ -8,11 +7,11 @@ import {
   Update,
   UpdateItems,
   ReliableEventValueItems,
-  ModelAccept
+  ModelAccept,
 } from '../interfaces'
 
 class ReliableEvent extends Scuttlebutt {
-  public events: Record<string, any[]> = {}
+  public events: Map<string, any[]> = new Map()
 
   constructor(opts?: ScuttlebuttOptions | string) {
     super(opts)
@@ -26,8 +25,10 @@ class ReliableEvent extends Scuttlebutt {
 
   applyUpdate(update: Update) {
     const key = update[UpdateItems.Data][ReliableEventValueItems.Key]
-    this.events[key] = this.events[key] || []
-    this.events[key].push(update)
+    if (!this.events.get(key)) {
+      this.events.set(key, [])
+    }
+    this.events.get(key)!.push(update)
     // emit the event.
     this.emit.apply(this, update[0])
     this.emit('__fired__', ...update[0])
@@ -51,11 +52,11 @@ class ReliableEvent extends Scuttlebutt {
   history(peerSources: Sources, peerAccept?: ModelAccept) {
     const h: Update[] = []
 
-    Object.keys(this.events).forEach(key => {
+    this.events.forEach((v, key) => {
       if (peerAccept && !this.isAccepted(peerAccept, [[key], 0, this.id])) {
         return
       }
-      this.events[key].forEach((update: Update) => {
+      this.events.get(key)!.forEach((update: Update) => {
         if (u.filter(update, peerSources)) {
           h.push(update)
         }

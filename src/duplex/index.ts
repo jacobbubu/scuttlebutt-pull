@@ -1,7 +1,6 @@
 import { EventEmitter } from 'events'
 import * as pull from 'pull-stream'
 import { Debug } from '@jacobbubu/debug'
-import i = require('iterate')
 import * as jsonSerializer from './json-serializer'
 
 import { Scuttlebutt } from '../index'
@@ -298,7 +297,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     if (this.sb instanceof AsyncScuttlebutt) {
       await this.sb.lockForHistory(async () => {
         const history = await this.sb.history(this.peerSources, this.peerAccept)
-        i.each(history, function (update) {
+        history.forEach(function (update) {
           const u = [...update]
           u[UpdateItems.From] = self.sb.id
           self.push(u)
@@ -319,7 +318,7 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
     } else {
       const history = this.sb.history(this.peerSources, this.peerAccept)
       const self = this
-      i.each(history, function (update) {
+      history.forEach(function (update) {
         const u = [...update]
         u[UpdateItems.From] = self.sb.id
         self.push(u)

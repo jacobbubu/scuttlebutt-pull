@@ -37,7 +37,7 @@ export enum UpdateItems {
   Timestamp,
   SourceId,
   From,
-  Singed
+  Singed,
 }
 
 export interface Serializer {

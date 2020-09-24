@@ -13,7 +13,7 @@ import {
   Verify,
   Sign,
   StreamOptions,
-  UpdateItems
+  UpdateItems,
 } from '../interfaces'
 import { createId } from '../utils'
 

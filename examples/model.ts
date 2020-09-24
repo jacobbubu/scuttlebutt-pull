@@ -1,4 +1,4 @@
-// process.env.DEBUG = 'sb*'
+process.env.DEBUG = 'sb*'
 
 import { Model, link } from '../src'
 import { printKeyValue } from './utils'

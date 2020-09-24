@@ -1,19 +1,16 @@
 import Scuttlebutt from '..'
-
-import i = require('iterate')
 import * as u from '../utils'
-
 import {
   ScuttlebuttOptions,
   Sources,
   Update,
   UpdateItems,
   ModelValueItems,
-  ModelAccept
+  ModelAccept,
 } from '../interfaces'
 
 class Model extends Scuttlebutt {
-  public store: Record<string, Update> = {}
+  public store: Map<string, Update> = new Map()
 
   constructor(opts?: ScuttlebuttOptions | string) {
     super(opts)
@@ -34,19 +31,19 @@ class Model extends Scuttlebutt {
       return u.protoIsIllegal(this)
     }
 
-    if (this.store[k]) {
-      return withClock ? this.store[k] : this.store[k][UpdateItems.Data][ModelValueItems.Value]
+    const v = this.store.get(k)
+    if (v) {
+      return withClock ? v : v[UpdateItems.Data][ModelValueItems.Value]
     }
   }
 
   keys() {
-    const a = []
-    for (let k in this.store) {
-      const v = this.get(k)
+    const a: string[] = []
+    this.store.forEach((v, k) => {
       if (!u.isNil(v)) {
         a.push(k)
       }
-    }
+    })
     return a
   }
 
@@ -54,19 +51,19 @@ class Model extends Scuttlebutt {
     const key = update[UpdateItems.Data][ModelValueItems.Key]
 
     // ignore if we already have a more recent value
-    // tslint:disable-next-line:strict-type-predicates
-    if (typeof this.store[key] !== 'undefined') {
-      if (this.store[key][UpdateItems.Timestamp] > update[UpdateItems.Timestamp]) {
+    const v = this.store.get(key)
+    if (typeof v !== 'undefined') {
+      if (v[UpdateItems.Timestamp] > update[UpdateItems.Timestamp]) {
         this.emit('_remove', update)
         return true
       }
     }
 
-    if (this.store[key]) {
-      this.emit('_remove', this.store[key])
+    if (v) {
+      this.emit('_remove', v)
     }
 
-    this.store[key] = update
+    this.store.set(key, update)
 
     this.emit.apply(this, ['update', update])
     this.emit('changed', key, update[UpdateItems.Data][ModelValueItems.Value])
@@ -100,7 +97,7 @@ class Model extends Scuttlebutt {
   history(peerSources: Sources, peerAccept?: ModelAccept) {
     const h: Update[] = []
     const self = this
-    i.each(this.store, function(update: Update) {
+    this.store.forEach((update: Update) => {
       if (peerAccept && !self.isAccepted(peerAccept, update)) {
         return
       }
@@ -113,12 +110,11 @@ class Model extends Scuttlebutt {
 
   toJSON() {
     const o: Record<string, any> = {}
-    for (let k in this.store) {
-      const v = this.get(k)
+    this.store.forEach((v, k) => {
       if (!u.isNil(v)) {
         o[k] = v
       }
-    }
+    })
     return o
   }
 }
