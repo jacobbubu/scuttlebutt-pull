@@ -1,3 +1,4 @@
+import { Debug } from '@jacobbubu/debug'
 import * as pull from 'pull-stream'
 import { AsyncModelStoreBase } from './async-model-store.interface'
 export type SourceId = string
@@ -11,6 +12,7 @@ export interface ScuttlebuttOptions {
   sign?: boolean
   verify?: boolean
   accept?: any
+  logger?: Debug
 }
 
 export interface AsyncModelOptions extends ScuttlebuttOptions {

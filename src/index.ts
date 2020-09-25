@@ -47,7 +47,7 @@ class Scuttlebutt extends EventEmitter {
       this.setId(id || createId())
     }
 
-    this.logger = defaultLogger.ns(this.id)
+    this.logger = opts.logger ?? defaultLogger.ns(this.id)
     this.accept = opts.accept
   }
 
