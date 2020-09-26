@@ -124,7 +124,7 @@
   },
   "dependencies": {
     "@jacobbubu/debug": "^1.1.3",
-    "@jacobbubu/pull-pushable-duplex": "^1.1.0",
+    "@jacobbubu/pull-pushable-duplex": "^1.1.1",
     "@jacobbubu/pull-split": "^1.0.1",
     "@jacobbubu/pull-stream-protocol-checker": "^1.0.0",
     "async-lock": "^1.2.2",
