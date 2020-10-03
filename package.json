@@ -13,8 +13,7 @@
   "license": "MIT",
   "files": [
     "dist",
-    "types",
-    "tsconfig.json"
+    "types"
   ],
   "engines": {
     "node": ">=6.0.0"
