@@ -36,6 +36,7 @@ interface Outgoing {
 class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   private _name: string
   private _sink: pull.Sink<any> | undefined
+  private _source: pull.Source<any> | undefined
   private _wrapper: string | Serializer
   private _readable = true
   private _writable = true
@@ -225,7 +226,18 @@ class Duplex extends EventEmitter implements pull.Duplex<any, any> {
   }
 
   get source() {
-    return this._innerDuplex.source
+    if (!this._source) {
+      if (this._wrapper === 'raw') {
+        this._source = this._innerDuplex.source
+      } else if (this._wrapper === 'json') {
+        this._source = pull(this._innerDuplex.source, jsonSerializer.serialize())
+      } else if ('string' === typeof this._wrapper) {
+        throw new Error(`unsupported wrapper name(${this._wrapper})`)
+      } else {
+        this._source = pull(this._innerDuplex.source, this._wrapper.serialize())
+      }
+    }
+    return this._source
   }
 
   get sink() {
